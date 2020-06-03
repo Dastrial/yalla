@@ -2,6 +2,8 @@
 
 Require Import EqNat Equalities RelationClasses Lia.
 Require Import funtheory List_more Bool_more.
+Require Import PeanoNat Equalities.
+Require Import dectype.
 Require yalla_ax.
 
 
@@ -10,10 +12,15 @@ Require yalla_ax.
 (** ** Definition and main properties of formulas *)
 
 (** A set of atoms for building formulas *)
+
+Section Param.
+
+Context { Sset : DecType }.
+
 Definition Atom := yalla_ax.Atom.
 
 (** Formulas *)
-Inductive formula : Set :=
+Inductive formula :=
 | var : Atom -> formula
 | covar : Atom -> formula
 | one : formula
@@ -24,8 +31,9 @@ Inductive formula : Set :=
 | top : formula
 | aplus : formula -> formula -> formula
 | awith : formula -> formula -> formula
-| oc : formula -> formula
-| wn : formula -> formula.
+| oc : Sset -> formula -> formula
+| wn : Sset -> formula -> formula.
+
 
 
 (** n-ary operators *)
@@ -44,28 +52,28 @@ match n with
 | S n => parr A (parr_n n A)
 end.
 
-Fixpoint wn_n n A :=
+Fixpoint wn_n n e A :=
 match n with
-| 0 => A
-| S n => wn (wn_n n A)
+| 0 => A (* pourquoi il y avait un 0 => E => A ?*)
+| S n => wn e (wn_n n e A)
 end.
 
-Lemma wn_n_wn : forall n A, wn_n n (wn A) = wn_n (S n) A.
+Lemma wn_n_wn : forall n A e, wn_n n e (wn e A) = wn_n (S n) e A.
 Proof with try reflexivity.
-intros n A.
+intros n A e.
 induction n...
 simpl in *; rewrite IHn...
 Qed.
 
-Fixpoint oc_n n A :=
+Fixpoint oc_n n e A :=
 match n with
 | 0 => A
-| S n => oc (oc_n n A)
+| S n => oc e (oc_n n e A)
 end.
 
-Lemma oc_n_oc : forall n A, oc_n n (oc A) = oc_n (S n) A.
+Lemma oc_n_oc : forall n A e, oc_n n e (oc e A) = oc_n (S n) e A.
 Proof with try reflexivity.
-intros n A.
+intros n A e.
 induction n...
 simpl in *; rewrite IHn...
 Qed.
@@ -86,13 +94,13 @@ match A with
 | top       => zero
 | aplus A B => awith (dual A) (dual B)
 | awith A B => aplus (dual A) (dual B)
-| oc A      => wn (dual A)
-| wn A      => oc (dual A)
+| oc e A      => wn e (dual A)
+| wn e A      => oc e (dual A)
 end.
 
 Lemma bidual : forall A, dual (dual A) = A.
 Proof.
-induction A ; simpl ;
+induction A ; simpl; (* ; fait une règle sur tous les subgoals ? *)
   try (rewrite IHA1 ; rewrite IHA2) ;
   try rewrite IHA ;
   try reflexivity.
@@ -101,7 +109,8 @@ Qed.
 Lemma codual : forall A B, dual A = B <-> A = dual B.
 Proof.
 intros A B ; split ; intro H.
-- rewrite <- bidual at 1.
+- rewrite <- bidual at 1. (*at 1. veut dire qu'on applique bidual 
+sur le premier argument de l'égalité ?*)
   rewrite H; reflexivity.
 - rewrite <- bidual.
   rewrite H; reflexivity.
@@ -129,16 +138,16 @@ destruct n...
 simpl in *; rewrite <- IHn...
 Qed.
 
-Lemma dual_wn_n : forall n A, dual (wn_n n A) = oc_n n (dual A).
+Lemma dual_wn_n : forall n A e, dual (wn_n n e A) = oc_n n e (dual A).
 Proof with try reflexivity.
-induction n; intro A...
+induction n; intros A e...
 destruct n...
-simpl in *; rewrite IHn...
+simpl in *; rewrite IHn... (* in * veut dire partout ? *)
 Qed.
 
-Lemma dual_oc_n : forall n A, dual (oc_n n A) = wn_n n (dual A).
+Lemma dual_oc_n : forall n A e, dual (oc_n n e A) = wn_n n e (dual A).
 Proof with try reflexivity.
-induction n; intro A...
+induction n; intros A e...
 destruct n...
 simpl in *; rewrite IHn...
 Qed.
@@ -156,13 +165,13 @@ match A with
 | top       => 1
 | aplus A B => S (fsize A + fsize B)
 | awith A B => S (fsize A + fsize B)
-| oc A      => S (fsize A)
-| wn A      => S (fsize A)
+| oc Sset A      => S (fsize A)
+| wn Sset A      => S (fsize A)
 end.
 
 Lemma fsize_pos : forall A, 0 < fsize A.
 Proof.
-induction A ; simpl ; lia.
+induction A; simpl; lia.
 Qed.
 
 Lemma fsize_dual : forall A, fsize (dual A) = fsize A.
@@ -174,16 +183,16 @@ induction A ; simpl ;
   try lia.
 Qed.
 
-Lemma fsize_wn_n : forall n A, fsize (wn_n n A) = n + fsize A.
+Lemma fsize_wn_n : forall n e A, fsize (wn_n n e A) = n + fsize A.
 Proof with try reflexivity.
-induction n; intros A; simpl...
-rewrite <- IHn...
+induction n; intros e A; simpl...
+rewrite -> IHn...
 Qed.
 
-Lemma fsize_oc_n : forall n A, fsize (oc_n n A) = n + fsize A.
+Lemma fsize_oc_n : forall n e A, fsize (oc_n n e A) = n + fsize A.
 Proof with try reflexivity.
-induction n; intros A; simpl...
-rewrite <- IHn...
+induction n; intros e A; simpl...
+rewrite -> IHn...
 Qed.
 
 Ltac fsize_auto :=
@@ -191,7 +200,7 @@ Ltac fsize_auto :=
   repeat rewrite fsize_dual ;
   simpl ;
   match goal with
-  | H: fsize _ < _ |- _ => simpl in H
+  | H: fsize _ < _ |- _ => simpl in H 
   | H: fsize _ <= _ |- _ => simpl in H
   | H: fsize _ = _ |- _ => simpl in H
   end ;
@@ -206,7 +215,8 @@ Inductive atomic : formula -> Type :=
 | atomic_var : forall x, atomic (var x)
 | atomic_covar : forall x, atomic (covar x).
 
-Lemma atomic_Prop_atomic : forall A, atomic_Prop A -> atomic A.
+Lemma atomic_Prop_atomic : forall A, atomic_Prop A -> atomic A. (* atomic A est un type, donc
+on veut savoir si atomic A est habitée ? *)
 Proof.
 induction A; intros Hat;
   try (exfalso; inversion Hat; fail);
@@ -227,8 +237,8 @@ Inductive subform : formula -> formula -> Prop :=
 | sub_plus_r : forall A B C, subform A B -> subform A (aplus C B)
 | sub_with_l : forall A B C, subform A B -> subform A (awith B C)
 | sub_with_r : forall A B C, subform A B -> subform A (awith C B)
-| sub_oc : forall A B, subform A B -> subform A (oc B)
-| sub_wn : forall A B, subform A B -> subform A (wn B).
+| sub_oc : forall A B e, subform A B -> subform A (oc e B)
+| sub_wn : forall A B e, subform A B -> subform A (wn e B).
 
 Lemma sub_trans : forall A B C, subform A B -> subform B C -> subform A C.
 Proof with try assumption.
@@ -264,8 +274,8 @@ Lemma sub_trans_list : forall l1 l2 l3,
   subform_list l1 l2 -> subform_list l2 l3 -> subform_list l1 l3.
 Proof with try eassumption.
 induction l1 ; intros l2 l3 Hl Hr ; constructor.
-- inversion Hl ; subst.
-  revert Hr H1 ; clear ; induction l2 ; intros Hr Hl ; inversion Hl ; subst.
+- inversion Hl; subst.
+  revert Hr H1 ; clear ; induction l2 ; intros Hr Hl; inversion Hl ; subst.
   + inversion Hr ; subst.
     inversion H2 ; subst.
     * apply Exists_cons_hd.
@@ -323,8 +333,8 @@ match A, B with
 | zero, zero => true
 | awith A1 A2, awith B1 B2 => eqb_form A1 B1 && eqb_form A2 B2
 | aplus A1 A2, aplus B1 B2 => eqb_form A1 B1 && eqb_form A2 B2
-| oc A1, oc B1 => eqb_form A1 B1
-| wn A1, wn B1 => eqb_form A1 B1
+| oc e0 A1, oc e1 B1 => eqb e0 e1 && eqb_form A1 B1
+| wn e0 A1, wn e1 B1 => eqb e0 e1 && eqb_form A1 B1
 | _, _ => false
 end.
 
@@ -358,20 +368,17 @@ induction A ; destruct B ; (split ; [ intros Heqb | intros Heq ]) ;
   apply IHA1 in H1 ; apply IHA2 in H2 ; subst...
 - subst ; simpl ; apply andb_true_iff.
   split ; [ apply IHA1 | apply IHA2 ]...
-- apply IHA in H0 ; subst...
-- subst ; simpl ; apply IHA...
-- apply IHA in H0 ; subst...
-- subst ; simpl ; apply IHA...
+- apply andb_true_iff in H0. destruct H0.
+  apply eqb_eq in H.
+  apply IHA in H0 ; subst...
+- simpl. apply andb_true_iff.
+  split;[now apply eqb_eq|].
+  rewrite <- H1. apply IHA. reflexivity.
+- apply andb_true_iff in H0. destruct H0.
+  apply eqb_eq in H.
+  apply IHA in H0 ; subst...
+- simpl. apply andb_true_iff. split. apply eqb_eq. reflexivity. rewrite <- H1. apply IHA. reflexivity.
 Qed.
-
-Module Formula_beq <: UsualBoolEq.
-  Definition t := formula.
-  Definition eq := @eq formula.
-  Definition eqb := eqb_form.
-  Definition eqb_eq := eqb_eq_form.
-End Formula_beq.
-
-Module Formula_dec <: UsualDecidableTypeFull := Make_UDTF Formula_beq.
 
 (* Unused
 Fixpoint eqb_formlist l1 l2 :=
@@ -432,8 +439,8 @@ match B with
 | parr B1 B2 => subformb A B1 || subformb A B2
 | awith B1 B2 => subformb A B1 || subformb A B2
 | aplus B1 B2 => subformb A B1 || subformb A B2
-| oc B1 => subformb A B1
-| wn B1 => subformb A B1
+| oc e B1 => subformb A B1
+| wn e B1 => subformb A B1
 | _ => false
 end.
 
@@ -508,14 +515,14 @@ intros A B ; split ; intros H ; induction B ;
     rewrite 2 orb_true_r...
 - inversion H ; subst.
   + unfold subformb.
-    replace (eqb_form (oc B) (oc B)) with true
+    replace (eqb_form (oc c B) (oc c B)) with true
       by (symmetry ; apply eqb_eq_form ; reflexivity)...
   + apply IHB in H2.
     simpl ; rewrite H2 ; simpl.
     rewrite orb_true_r...
 - inversion H ; subst.
   + unfold subformb.
-    replace (eqb_form (wn B) (wn B)) with true
+    replace (eqb_form (wn c B) (wn c B)) with true
       by (symmetry ; apply eqb_eq_form ; reflexivity)...
   + apply IHB in H2.
     simpl ; rewrite H2 ; simpl.
@@ -579,3 +586,219 @@ apply subb_sub_list.
 etransitivity ; eassumption.
 Qed.
 
+End Param.
+
+
+(****************************************************************************************
+
+Require Import PeanoNat CMorphisms Lia.
+Require Import Bool_more List_more List_Type_more Dependent_Forall_Type
+               Permutation_Type_more CyclicPerm_Type Permutation_Type_solve
+               CPermutation_Type_solve genperm_Type.
+Require Export basic_misc.
+
+(** ** Fragments for proofs *)
+
+Definition NoAxioms := (existT (fun x => x -> list formula) _ Empty_fun).
+
+Definition pmix_none (n : nat) := false.
+Definition pmix_all (n : nat) := true.
+Definition pmix0 n :=
+  match n with
+  | 0 => true
+  | _ => false
+  end.
+Definition pmix2 n :=
+  match n with
+  | 2 => true
+  | _ => false
+  end.
+Definition pmix02 n :=
+  match n with
+  | 0 => true
+  | 2 => true
+  | _ => false
+  end.
+
+Definition pmix_ge_k k n := if (k <=? n) then true else false.
+
+Definition pmix_le_k k n := if (n <=? k) then true else false.
+
+
+(** Parameters for [ll] provability:
+ - [pcut], [pmix0] and [pmix2] determine whether the corresponding rule is in the system or not;
+ - [pperm] is [false] for exchange rule modulo cyclic permutations and [true] for exchange rule modulo arbitrary permutations;
+ - [pgax] determines the sequents which are valid as axioms in proofs.
+*)
+Record pfrag := mk_pfrag {
+  pcut : bool ;
+  pgax : { ptypgax : Type & ptypgax -> list formula } ;
+  pmix : nat -> bool ;
+  pperm : bool }.
+
+(** Order relation on proof fragments: [P] is more restrictive than [Q]. *)
+Definition le_pfrag P Q :=
+  prod
+    (Bool.leb (pcut P) (pcut Q))
+  (prod
+    (forall a, { b | projT2 (pgax P) a = projT2 (pgax Q) b })
+  (prod
+    (forall n, Bool.leb (pmix P n) (pmix Q n))
+    (Bool.leb (pperm P) (pperm Q)))).
+
+Lemma le_pfrag_trans : forall P Q R,
+  le_pfrag P Q -> le_pfrag Q R -> le_pfrag P R.
+Proof with myeeasy; try assumption.
+  intros P Q R H1 H2.
+  unfold le_pfrag in H1.
+  destruct H1 as (Hc1 & Ha1 & Hm1 & Hp1).
+  unfold le_pfrag in H2.
+  destruct H2 as (Hc2 & Ha2 & Hm2 & Hp2).
+  nsplit 4 ; try (eapply leb_trans ; myeeasy).
+  - intros a.
+    destruct (Ha1 a) as [b Heq].
+    destruct (Ha2 b) as [c Heq2].
+    exists c ; etransitivity...
+  - intros n.
+    apply leb_trans with (pmix Q n); [ apply Hm1 | apply Hm2 ].
+Qed.
+
+Instance le_pfrag_po : PreOrder le_pfrag.
+Proof.
+split.
+- nsplit 4 ; try reflexivity.
+  simpl ; intros a.
+  exists a ; reflexivity.
+- intros P Q R.
+  apply le_pfrag_trans.
+Qed.
+
+(* Unused
+Definition eq_pfrag P Q :=
+  prod (pcut P = pcut Q)
+       (prod (prod (forall a, { b | projT2 (pgax P) a = projT2 (pgax Q) b})
+                   (forall b, {a | projT2 (pgax P) a = projT2 (pgax Q) b}))
+       (prod (forall n, pmix P n = pmix Q n)
+             (pperm P = pperm Q))).
+
+Lemma eq_pfrag_trans : forall P Q R,
+    eq_pfrag P Q -> eq_pfrag Q R -> eq_pfrag P R.
+Proof with myeeasy; try assumption.
+  intros P Q R H1 H2.
+  destruct H1 as (Hc1 & (Ha1 & Hb1) & Hm1 & Hp1).
+  destruct H2 as (Hc2 & (Ha2 & Hb2) & Hm2 & Hp2).
+  nsplit 4; try (etransitivity; eassumption).
+  - split.
+    + intros a.
+      destruct (Ha1 a) as [a' Heq].
+      destruct (Ha2 a') as [a'' Heq2].
+      exists a'' ; etransitivity...
+    + intros b.
+      destruct (Hb2 b) as [b' Heq].
+      destruct (Hb1 b') as [b'' Heq2].
+      exists b'' ; etransitivity...
+  - intros n.
+    specialize (Hm1 n).
+    specialize (Hm2 n).
+    etransitivity; eassumption.
+Qed.
+
+Lemma eq_pfrag_sym : forall P Q,
+    eq_pfrag P Q -> eq_pfrag Q P.
+Proof with myeeasy; try eassumption.
+  intros P Q H.
+  destruct H as (Hc & (Ha & Hb) & Hm & Hp).
+  nsplit 4; try (symmetry ; assumption ; fail)...
+  - split.
+    + intro a.
+      destruct (Hb a) as (b & Heq).
+      split with b.
+      symmetry...
+    + intro b.
+      destruct (Ha b) as (a & Heq).
+      split with a.
+      symmetry...
+  - intros n; symmetry; apply Hm...
+Qed.
+
+Lemma eq_pfrag_refl : forall P,
+    eq_pfrag P P.
+Proof with try reflexivity.
+  intros P.
+  nsplit 4...
+  split; intro a; split with a...
+Qed.
+*)
+
+(** Same proof fragment as [P] but with value [b] for [pcut]. *)
+Definition cutupd_pfrag P b := mk_pfrag b (pgax P) (pmix P) (pperm P).
+
+Lemma cutupd_pfrag_true : forall P, le_pfrag P (cutupd_pfrag P true).
+Proof.
+intros P.
+nsplit 4 ; try reflexivity.
+- apply leb_true.
+- intros a ; exists a ; reflexivity.
+Qed.
+
+(** Same proof fragment as [P] but with value [G] for [pgax]. *)
+Definition axupd_pfrag P G := mk_pfrag (pcut P) G (pmix P) (pperm P).
+
+(** Same proof fragment as [P] but without the [cut] rule. *)
+Definition cutrm_pfrag P := cutupd_pfrag P false.
+
+Lemma cutrm_cutrm : forall P,
+  cutrm_pfrag (cutrm_pfrag P) = cutrm_pfrag P.
+Proof.
+intros P.
+unfold cutrm_pfrag ; unfold cutupd_pfrag.
+reflexivity.
+Qed.
+
+
+(** Same proof fragment as [P] but with a different pmix *)
+Definition pmixupd_pfrag P pmix := mk_pfrag (pcut P) (pgax P) pmix (pperm P).
+
+Definition pmixupd_point_pfrag P n b :=
+  pmixupd_pfrag P (fun k => if (k =? n) then b else (pmix P k)).
+
+Lemma pmixupd_point_comm P : forall n1 n2 b1 b2,
+    n1 <> n2 ->
+    forall k, pmix (pmixupd_point_pfrag (pmixupd_point_pfrag P n1 b1) n2 b2) k
+            = pmix (pmixupd_point_pfrag (pmixupd_point_pfrag P n2 b2) n1 b1) k.
+Proof with try reflexivity.
+  intros n1 n2 b1 b2 Hneq k.
+  case_eq (k =? n1) ; intros Heq1; case_eq (k =? n2); intros Heq2; simpl; rewrite Heq1; rewrite Heq2...
+  exfalso.
+  apply Hneq.
+  transitivity k.
+  - symmetry; apply EqNat.beq_nat_true; apply Heq1.
+  - apply EqNat.beq_nat_true; apply Heq2.
+Qed.
+
+
+Inductive ll P : list formula -> Type :=
+| ax_r : forall X, ll P (covar X :: var X :: nil)
+| ex_r : forall l1 l2, ll P l1 -> PCperm_Type (pperm P) l1 l2 -> ll P l2
+| ex_wn_r : forall l1 lw lw' l2 e, ll P (l1 ++ map (wn e) lw ++ l2) ->
+               Permutation_Type lw lw' -> ll P (l1 ++ map (wn e) lw' ++ l2)
+| mix_r : forall L, is_true (pmix P (length L)) ->
+               Forall_Type (ll P) L -> ll P (concat L)
+| one_r : ll P (one :: nil)
+| bot_r : forall l, ll P l -> ll P (bot :: l)
+| tens_r : forall A B l1 l2, ll P (A :: l1) -> ll P (B :: l2) ->
+                                   ll P (tens A B :: l2 ++ l1)
+| parr_r : forall A B l, ll P (A :: B :: l) -> ll P (parr A B :: l)
+| top_r : forall l, ll P (top :: l)
+| plus_r1 : forall A B l, ll P (A :: l) -> ll P (aplus A B :: l)
+| plus_r2 : forall A B l, ll P (A :: l) -> ll P (aplus B A :: l)
+| with_r : forall A B l, ll P (A :: l) -> ll P (B :: l) ->
+                               ll P (awith A B :: l)
+| oc_r : forall A l e, ll P (A :: map (wn e) l) -> ll P (oc A :: map (wn e) l)
+| mpx_r : forall A l, ll P (A :: l) -> ll P (wn A :: l)
+| wk_r : forall A l, ll P l -> ll P (wn A :: l)
+| co_r : forall A l, ll P (wn A :: wn A :: l) -> ll P (wn A :: l)
+| cut_r {f : pcut P = true} : forall A l1 l2,
+    ll P (dual A :: l1) -> ll P (A :: l2) -> ll P (l2 ++ l1)
+| gax_r : forall a, ll P (projT2 (pgax P) a).
+*)
