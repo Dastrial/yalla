@@ -19,14 +19,14 @@ Require Export basic_misc formulas.
 (** ** Fragments for proofs *)
 Axiom eq_dt_dec : forall (E : DecType) (x y : @formula E), {x = y} + {x <> y}.
 
-Notation Dependent_Forall_Type_forall_formula :=
-  (Dependent_Forall_Type_forall (list_eq_dec eq_dt_dec)).
-
 
 Section Param.
 Variable Sset: DecType.
 Notation formula := (@formula Sset).
 Definition NoAxioms := (existT (fun x => x -> list formula) _ Empty_fun).
+Notation Dependent_Forall_Type_forall_formula :=
+  (Dependent_Forall_Type_forall (List.list_eq_dec (eq_dt_dec Sset))).
+
 
 Definition pmix_none (n : nat) := false.
 Definition pmix_all (n : nat) := true.
@@ -333,6 +333,8 @@ Section ll_ind.
     induction PpiL; now constructor.
   Qed.
 
+
+
   Fixpoint ll_nested_ind {l} (pi : ll P l): forall (Pred : forall l, ll P l -> Type),
            (forall X, Pred (covar X :: var X :: nil) (ax_r P X)) ->
            (forall l1 l2 pi p, Pred l1 pi -> Pred l2 (ex_r P l1 l2 pi p)) ->
@@ -425,7 +427,7 @@ Section ll_ind.
             (forall a, Pred (projT2 (pgax P) a) (gax_r P a)) ->
             Pred l pi.
   Proof with try eassumption.
-    intros.
+    intros Pred H H0 H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14 H15 H16 H17 H18.
     apply ll_nested_ind...
     intros L e f HP.
     enough (Pred (flat_map (projT1 (P:=ll P)) (Forall_to_list f))
@@ -448,12 +450,12 @@ Section ll_ind.
                                  (Forall_to_list_length L f))
                        (map_length (projT1 (P:=ll P)) (Forall_to_list f))) by apply UIP_bool.
       rewrite <- (Forall_to_list_support L f) ; simpl ; assumption. }
-    apply X2.
+    apply H2.
     clear e.
     induction HP ; simpl ; constructor...
   Qed.
 
-(*Ltac induction_ll f X L l l1 l2 lw lw' e eqpmix IHl IHr IH p pi pil pir e e' A B a plen pleq H :=
+(* Ltac induction_ll f X L l l1 l2 lw lw' e eqpmix IHl IHr IH p pi pil pir e e' A B a plen pleq H :=
   match type of H with
   | ll _ _ => (induction H using ll_nested_ind' as [ X
                             | l1 l2 pi p IH
@@ -475,7 +477,7 @@ Section ll_ind.
                             | e A l pi p IH
                             | f A l1 l2 pil pir Hl Hr
                             | a ] ; subst)
-  end.*)
+  end. *)
 
 End ll_ind.
 
@@ -569,10 +571,10 @@ end.
 Lemma gax_elts_mix {P} : forall L eq FL l pi, In_Forall_Type (ll P) l pi FL ->
   forall ax, In_Type ax (gax_elts pi) -> In_Type ax (gax_elts (mix_r P L eq FL)).
 Proof with try assumption;try reflexivity.
-  intros L eq FL; simpl; clear eq.
-  induction FL; intros l' pi Hin; inversion Hin.
+  intros L eq FL; simpl; clear eq. Print In_Forall_Type.
+  induction FL; intros l' pi Hin ; [inversion Hin| inversion Hin as [H|]].
+(*question : est-ce qu'on peut faire mieux que deux inversions en nommant correctement les hypothèses ?*)
   - inversion H; subst.
-  
     intros ax Hin_ax.
     apply in_Type_or_app.
     left...
@@ -952,15 +954,17 @@ induction pi using ll_nested_ind ; intros l1' l2' Heq ; subst.
   destruct l1'; inversion Heq.
   destruct l1'; inversion Heq.
 - destruct l1' ; inversion Heq ; subst.
-  list_simpl ; eapply mpx_r...
-  apply IHpi.
+  list_simpl. eapply mpx_r...
+  rewrite app_assoc. 
+  apply IHpi; list_simpl...
 - destruct l1' ; inversion Heq ; subst.
-  list_simpl ; eapply wk_r...
-  apply IHpi...
+  list_simpl. eapply co_r...
+  rewrite app_assoc. 
+  apply IHpi; list_simpl...
 - destruct l1' ; inversion Heq ; subst.
-  list_simpl ; apply co_r.
-  rewrite 2 app_comm_cons.
-  apply IHpi...
+  list_simpl. eapply dg_r...
+  rewrite app_assoc. rewrite app_comm_cons.
+  apply IHpi; list_simpl...
 - dichot_Type_elt_app_exec Heq ; subst.
   + rewrite app_assoc ; eapply cut_r...
     rewrite app_comm_cons.
@@ -1056,16 +1060,27 @@ induction pi using ll_nested_ind ; intros A' B' l1' l2' Heq ; subst.
   symmetry in H1.
   decomp_map H1.
   inversion H1.
+-exfalso.
+  destruct l1' ; inversion Heq.
+  symmetry in H1.
+  decomp_map H1.
+  inversion H1.
+-exfalso.
+  destruct l1' ; inversion Heq.
+  induction l1'.
+  + discriminate.
+  + inversion H1. induction l1'.
+    * discriminate.
+    * rewrite <- app_comm_cons in H3.  inversion H3. (* il y a plus simple je pense *)
 - destruct l1' ; inversion Heq ; subst.
-  list_simpl ; eapply de_r...
-  rewrite app_comm_cons.
-  apply IHpi...
+  list_simpl ; eapply mpx_r... rewrite app_assoc.
+  apply IHpi. apply app_assoc.
 - destruct l1' ; inversion Heq ; subst.
-  list_simpl ; eapply wk_r...
-  apply IHpi...
+  list_simpl ; eapply co_r... rewrite app_assoc.
+  apply IHpi. apply app_assoc.
 - destruct l1' ; inversion Heq ; subst.
-  list_simpl ; eapply co_r...
-    rewrite 2 app_comm_cons ; apply IHpi ; list_simpl...
+  list_simpl ; eapply dg_r... rewrite app_assoc. rewrite app_comm_cons.
+  apply IHpi. list_simpl...
 - dichot_Type_elt_app_exec Heq ; subst.
   + rewrite 2 app_comm_cons ; rewrite app_assoc ; eapply cut_r...
     rewrite app_comm_cons ; apply IHpi2...
@@ -1157,16 +1172,33 @@ induction pi using ll_nested_ind ; intros l1' l2' Heq ; subst.
   symmetry in H1.
   decomp_map H1.
   inversion H1.
+- exfalso.
+  destruct l1' ; inversion Heq.
+  symmetry in H1.
+  decomp_map H1.
+  inversion H1.
+- exfalso.
+  destruct l1' ; inversion Heq.
+  symmetry in H1.
+  induction l1'.
+  + inversion H1.
+  + inversion H1.
+    induction l1'.
+    * inversion H3.
+    * inversion H3.
 - destruct l1' ; inversion Heq ; subst.
-  list_simpl ; eapply de_r...
-  rewrite app_comm_cons.
-  apply IHpi...
-- destruct l1' ; inversion Heq ; subst.
-  list_simpl ; eapply wk_r...
-  apply IHpi...
+  list_simpl ; eapply mpx_r...
+  rewrite app_assoc.
+  apply IHpi. list_simpl...
 - destruct l1' ; inversion Heq ; subst.
   list_simpl ; eapply co_r...
-  rewrite 2 app_comm_cons ; apply IHpi ; list_simpl...
+  rewrite app_assoc.
+  apply IHpi. list_simpl...
+- destruct l1' ; inversion Heq ; subst.
+  list_simpl ; eapply dg_r...
+  rewrite app_assoc.
+  rewrite app_comm_cons.
+  apply IHpi. list_simpl...
 - dichot_Type_elt_app_exec Heq ; subst.
   + rewrite 2 app_assoc ; eapply cut_r...
     list_simpl ; rewrite app_comm_cons ; apply IHpi2...
@@ -1259,16 +1291,33 @@ induction pi using ll_nested_ind ; intros A' l1' l2' Heq ; subst.
   symmetry in H1.
   decomp_map H1.
   inversion H1.
+- exfalso.
+  destruct l1' ; inversion Heq.
+  symmetry in H1.
+  decomp_map H1.
+  inversion H1.
+- exfalso.
+  destruct l1' ; inversion Heq.
+  symmetry in H1.
+  induction l1'.
+  + inversion H1.
+  + inversion H1.
+    induction l1'.
+    * inversion H3.
+    * inversion H3.
 - destruct l1' ; inversion Heq ; subst.
-  list_simpl ; eapply de_r...
-  rewrite app_comm_cons.
-  apply IHpi...
-- destruct l1' ; inversion Heq ; subst.
-  list_simpl ; eapply wk_r...
-  apply IHpi...
+  list_simpl ; eapply mpx_r...
+  rewrite app_assoc.
+  apply IHpi. list_simpl...
 - destruct l1' ; inversion Heq ; subst.
   list_simpl ; eapply co_r...
-  rewrite 2 app_comm_cons ; apply IHpi ; list_simpl...
+  rewrite app_assoc.
+  apply IHpi. list_simpl...
+- destruct l1' ; inversion Heq ; subst.
+  list_simpl ; eapply dg_r...
+  rewrite app_assoc.
+  rewrite app_comm_cons.
+  apply IHpi. list_simpl...
 - dichot_Type_elt_app_exec Heq ; subst.
   + rewrite app_comm_cons ; rewrite app_assoc ; eapply cut_r...
     list_simpl ; rewrite app_comm_cons ; apply IHpi2...
@@ -1371,8 +1420,8 @@ Inductive munit_smp : formula -> formula -> Type :=
                  munit_smp (aplus A1 A2) (aplus B1 B2)
 | musmp_with : forall A1 A2 B1 B2, munit_smp A1 B1 -> munit_smp A2 B2 ->
                  munit_smp (awith A1 A2) (awith B1 B2)
-| musmp_oc : forall A B, munit_smp A B -> munit_smp (oc A) (oc B)
-| musmp_wn : forall A B, munit_smp A B -> munit_smp (wn A) (wn B)
+| musmp_oc : forall A B e, munit_smp A B -> munit_smp (oc e A) (oc e B)
+| musmp_wn : forall A B e, munit_smp A B -> munit_smp (wn e A) (wn e B)
 | musmp_to : forall A B, munit_smp A B -> munit_smp (tens one A) B
 | musmp_pb : forall A B, munit_smp A B -> munit_smp (parr A bot) B.
 
@@ -1381,15 +1430,55 @@ Proof.
 induction A ; constructor ; assumption.
 Qed.
 
-Lemma munit_smp_map_wn : forall l1 l2, Forall2_Type munit_smp (map wn l1) l2 ->
-  { l : _ & l2 = map wn l & Forall2_Type munit_smp l1 l }.
+
+Lemma munit_smp_map_wn : forall e l1 l2, Forall2_Type munit_smp (map (wn e) l1) l2 ->
+  { l : _ & l2 = map (wn e) l & Forall2_Type munit_smp l1 l }.
 Proof.
 induction l1 ; intros l2 HF ; inversion HF ; subst.
 - exists nil ; constructor.
-- inversion H2; subst.
-  apply IHl1 in X.
-  destruct X as [ l'' Heq HF' ] ; subst.
+- inversion X; subst.
+  apply IHl1 in X0.
+  destruct X0 as [ l'' Heq HF' ] ; subst.
   exists (B :: l'') ; constructor ; assumption.
+Qed.
+
+Lemma ceq_imp_fsteqmap : forall l1 l2, Forall2_Type munit_smp
+    (map
+       (fun p : Sset * formula =>
+        wn (fst p) (snd p)) l1)
+    (map
+       (fun p : Sset * formula =>
+        wn (fst p) (snd p)) l2) -> (map (fun p : Sset * formula => fst p) l1 =
+map (fun p : Sset * formula => fst p) l2).
+Proof.
+induction l1.
+- intros l2 H. list_simpl in H. induction l2. reflexivity. inversion H.
+- induction l2.
+  + intro H. inversion H.
+  + intro H. inversion H.
+  unfold map. inversion X. rewrite H7. specialize IHl1 with l2. inversion H. apply IHl1 in X3. unfold map in X3. rewrite X3. reflexivity.
+Qed.
+
+Lemma munit_smp_map_wn2 : forall l1 l2, Forall2_Type munit_smp (map (fun p => 
+                         wn (fst p) (snd p)) l1) l2 -> 
+                         { l : _ & l2 = (map (fun p => wn (fst p) (snd p)) l)
+                         & Forall2_Type munit_smp (map (fun p => (snd p)) l1) (map (fun p => (snd p)) l) }.
+Proof.
+induction l1 ; intros l2 HF ; inversion HF ; subst.
+- exists nil ; constructor.
+- inversion X; subst.
+  apply IHl1 in X0.
+  destruct X0 as [ l'' Heq HF' ] ; subst.
+  exists (((fst a), B) :: l'') ; constructor ; assumption.
+Qed.
+
+Lemma munit_repeat : forall l l' A B i, Forall2_Type munit_smp l l' -> munit_smp A B -> 
+                              Forall2_Type munit_smp ((repeat A i) ++ l) ((repeat B i) ++ l').
+Proof.
+induction i.
+- intros H _ ; list_simpl ; assumption.
+- intros H1 H2.
+  constructor ; auto.
 Qed.
 
 Lemma munit_elim {P} : (forall a, Forall_Type atomic (projT2 (pgax P) a)) ->
@@ -1397,7 +1486,7 @@ Lemma munit_elim {P} : (forall a, Forall_Type atomic (projT2 (pgax P) a)) ->
 Proof with try eassumption.
 intros Hgax l1 pi ; induction pi using ll_nested_ind ; intros l2' HF ;
   try now (inversion HF ; subst ;
-           inversion H2 ; subst ;
+           inversion X ; subst ;
            constructor ; apply IHpi ; try eassumption ;
            constructor ; eassumption).
 - inversion HF as [ | C D lc ld Hc' HF'] ; subst.
@@ -1416,7 +1505,7 @@ intros Hgax l1 pi ; induction pi using ll_nested_ind ; intros l2' HF ;
   assert (HF4 := HF2).
   apply munit_smp_map_wn in HF2 as [ l''' Heq HF2 ] ; rewrite_all Heq ; clear Heq.
   symmetry in p.
-  apply (Permutation_Type_map wn) in p.
+  apply (Permutation_Type_map (wn e)) in p.
   eapply Permutation_Type_Forall2 in p as [la HP] ; [ | eassumption ].
   symmetry in HP.
   apply Permutation_Type_map_inv in HP ; destruct HP as [lb Heq HP] ; subst.
@@ -1436,11 +1525,11 @@ intros Hgax l1 pi ; induction pi using ll_nested_ind ; intros l2' HF ;
     apply (In_Forall_Type_in _ _ _ PL) in Hinl as (pi' & Hinl).
     refine (Dependent_Forall_Type_forall_formula _ _ _ _ PL X Hinl _ Rll').
 - inversion HF ; subst.
-  inversion H2 ; inversion X ; subst.
+  inversion X ; inversion X0 ; subst.
   constructor.
 - inversion HF ; subst.
-  apply Forall2_Type_app_inv_l in X as [(l2', l1') [HF2 HF1] Heq]; subst.
-  inversion H2 ; subst.
+  apply Forall2_Type_app_inv_l in X0 as [(l2', l1') [HF2 HF1] Heq]; subst.
+  inversion X ; subst.
   + constructor ; [ apply IHpi1 | apply IHpi2 ] ; constructor...
   + apply (Forall2_Type_cons one one) in HF1 ; [ | constructor ].
     apply IHpi1 in HF1.
@@ -1452,24 +1541,60 @@ intros Hgax l1 pi ; induction pi using ll_nested_ind ; intros l2' HF ;
       inversion Hone. }
     rewrite <- (app_nil_l _) in HF1 ; eapply (one_rev Hgax1 _ HF2) in HF1...
 - inversion HF ; subst.
-  inversion H2 ; subst.
+  inversion X ; subst.
   + constructor ; apply IHpi ; constructor ; try constructor...
-  + apply (Forall2_Type_cons bot bot) in X ; [ | constructor ].
-    apply (Forall2_Type_cons A y) in X...
-    apply IHpi in X.
+  + apply (Forall2_Type_cons bot bot) in X0 ; [ | constructor ].
+    apply (Forall2_Type_cons A y) in X0...
+    apply IHpi in X0.
     rewrite <- (app_nil_l l') ; rewrite app_comm_cons.
     eapply bot_rev...
     intros a Hbot.
     eapply Forall_Type_forall in Hbot; [ | apply Hgax].
     inversion Hbot.
 - inversion HF ; subst.
-  inversion H2 ; subst.
+  inversion X ; subst.
   constructor ; [ apply IHpi1 | apply IHpi2 ] ; constructor...
 - inversion HF ; subst.
-  inversion H2 ; subst.
-  assert (HF' := X).
-  apply munit_smp_map_wn in X as [ l'' Heq HF'' ] ; subst.
-  constructor ; apply IHpi ; constructor...
+  inversion X ; subst.
+  apply munit_smp_map_wn2 in X0.
+  inversion X0 ; subst.
+  refine (ocg_r _ _ _ x _ _).
+  + apply IHpi.
+   constructor... inversion HF...
+  + inversion HF. apply ceq_imp_fsteqmap in X4. rewrite <-X4. apply pleq.
+- inversion HF ; subst.
+  inversion X ; subst.
+  apply munit_smp_map_wn2 in X0.
+  inversion X0 ; subst.
+  refine (ocf_r _ _ _ x _ _).
+  + apply IHpi.
+   constructor...
+  + inversion HF. apply ceq_imp_fsteqmap in X4. rewrite <-X4. apply pleq.
+- inversion HF ; subst.
+  inversion X ; subst.
+  inversion X0 ; subst.
+  inversion X3 ; subst.
+  inversion X2 ; subst.
+  refine (ocu_r _ _ _ _ B1 _ _).
+  + apply IHpi.
+   constructor... constructor...
+  + auto.
+- inversion HF ; subst.
+  inversion X ; subst.
+  apply mpx_r with i...
+  apply IHpi.
+  apply munit_repeat ; auto.
+- inversion HF ; subst.
+  inversion X ; subst.
+  apply co_r with i...
+  apply IHpi.
+  apply munit_repeat ; auto.
+- inversion HF ; subst.
+  inversion X ; subst.
+  apply dg_r...
+  apply IHpi.
+  constructor...
+  constructor...
 - apply Forall2_Type_app_inv_l in HF as [(l', l'') [HF2 HF1] Heq]; subst.
   eapply cut_r ; [ assumption | apply IHpi1 | apply IHpi2 ] ;
     (apply Forall2_Type_cons ; [ apply munit_smp_id | ])...
@@ -1479,7 +1604,7 @@ intros Hgax l1 pi ; induction pi using ll_nested_ind ; intros l2' HF ;
     revert l2' Hgax HF ; clear.
     induction l ; intros l2 Hgax HF ; inversion HF ; subst ; f_equal.
     - inversion Hgax ; subst.
-      destruct a ; inversion H0 ; inversion H2 ; subst ; reflexivity.
+      destruct a ; inversion H0 ; inversion X ; subst ; reflexivity.
     - inversion Hgax ; subst.
       apply IHl... }
   constructor.
@@ -1489,8 +1614,10 @@ Qed.
 (** ** Properties on axioms *)
 
 (** Axiom expansion *)
-Lemma ax_exp {P} : forall A, ll P (A :: dual A :: nil).
+Lemma ax_exp {P} : (forall e, is_true ( lequ P e e || leqf P e e ||
+                         (leqg P e e && (sig P e (mpx_rule 1))) )) -> forall A, ll P (A :: dual A :: nil).
 Proof with myeeasy.
+intro ax_exp_ax.
 induction A ; simpl.
 - ll_swap.
   apply ax_r.
@@ -1523,8 +1650,12 @@ induction A ; simpl.
 - apply with_r ; ll_swap.
   + apply plus_r1 ; ll_swap...
   + apply plus_r2 ; ll_swap...
-- change (oc A :: wn (dual A) :: nil)
-    with (oc A :: map wn (dual A :: nil)).
+- change (oc c A :: wn c (dual A) :: nil)
+    with (oc c A :: map (wn c) (dual A :: nil)).
+  specialize ax_exp_ax with c.
+  inversion ax_exp_ax.
+  inversion H0.
+  destruct ax_exp_ax.
   apply oc_r.
   ll_swap in IHA.
   list_simpl ; ll_swap.

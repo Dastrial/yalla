@@ -260,7 +260,7 @@ Definition subform_list l1 l2 := Forall (fun A => Exists (subform A) l2) l1.
 
 Lemma sub_id_list : forall l l0, subform_list l (l0 ++ l).
 Proof.
-induction l ; intros l0 ; constructor.
+induction l as [|a] ; intros l0 ; constructor.
 - induction l0.
   + constructor.
     apply sub_id.
@@ -338,45 +338,62 @@ match A, B with
 | _, _ => false
 end.
 
+
+Ltac induction_formula A A1 A2 X e:=
+  induction A as [ X
+                 | X
+                 |
+                 |
+                 | A1 IHl A2 IHr
+                 | A1 IHl A2 IHr
+                 |
+                 |
+                 | A1 IHl A2 IHr
+                 | A1 IHl A2 IHr
+                 | e A IH
+                 | e A IH].
+
 Lemma eqb_eq_form : forall A B, eqb_form A B = true <-> A = B.
 Proof with reflexivity.
+
 induction A ; destruct B ; (split ; [ intros Heqb | intros Heq ]) ;
-  try inversion Heqb ; try inversion Heq ; try reflexivity.
-- apply yalla_ax.ateq_eq in H0 ; subst...
+  try inversion Heqb as [H] ; try inversion Heq ; try reflexivity. (* question : ici inversion Heq peut générer 1 ou 2 buts
+selon le cas, comment nomme-t-on les hypothèses ? *)
+- apply yalla_ax.ateq_eq in H ; subst...
 - subst ; simpl.
   apply yalla_ax.ateq_eq...
-- apply yalla_ax.ateq_eq in H0 ; subst...
+- apply yalla_ax.ateq_eq in H ; subst...
 - subst ; simpl.
   apply yalla_ax.ateq_eq...
-- apply andb_true_iff in H0.
-  destruct H0 as [H1 H2].
+- apply andb_true_iff in H.
+  destruct H as [H1 H2].
   apply IHA1 in H1 ; apply IHA2 in H2 ; subst...
 - subst ; simpl ; apply andb_true_iff.
   split ; [ apply IHA1 | apply IHA2 ]...
-- apply andb_true_iff in H0.
-  destruct H0 as [H1 H2].
+- apply andb_true_iff in H.
+  destruct H as [H1 H2].
   apply IHA1 in H1 ; apply IHA2 in H2 ; subst...
 - subst ; simpl ; apply andb_true_iff.
   split ; [ apply IHA1 | apply IHA2 ]...
-- apply andb_true_iff in H0.
-  destruct H0 as [H1 H2].
+- apply andb_true_iff in H.
+  destruct H as [H1 H2].
   apply IHA1 in H1 ; apply IHA2 in H2 ; subst...
 - subst ; simpl ; apply andb_true_iff.
   split ; [ apply IHA1 | apply IHA2 ]...
-- apply andb_true_iff in H0.
-  destruct H0 as [H1 H2].
+- apply andb_true_iff in H.
+  destruct H as [H1 H2].
   apply IHA1 in H1 ; apply IHA2 in H2 ; subst...
 - subst ; simpl ; apply andb_true_iff.
   split ; [ apply IHA1 | apply IHA2 ]...
-- apply andb_true_iff in H0. destruct H0.
-  apply eqb_eq in H.
-  apply IHA in H0 ; subst...
+- apply andb_true_iff in H. destruct H as [H'].
+  apply eqb_eq in H'.
+  apply IHA in H ; subst...
 - simpl. apply andb_true_iff.
   split;[now apply eqb_eq|].
   rewrite <- H1. apply IHA. reflexivity.
-- apply andb_true_iff in H0. destruct H0.
-  apply eqb_eq in H.
-  apply IHA in H0 ; subst...
+- apply andb_true_iff in H. destruct H as [H'].
+  apply eqb_eq in H'.
+  apply IHA in H ; subst...
 - simpl. apply andb_true_iff. split. apply eqb_eq. reflexivity. rewrite <- H1. apply IHA. reflexivity.
 Qed.
 
@@ -446,7 +463,7 @@ end.
 
 Lemma subb_sub : forall A B, is_true (subformb A B) <-> subform A B.
 Proof with try assumption; try reflexivity.
-intros A B ; split ; intros H ; induction B ;
+intros A B ; split ; intros H ; induction_formula B B1 B2 X e;
   try (now (inversion H ; constructor)) ;
   try (now (destruct A ; simpl in H ; inversion H));
   try (simpl in H;
@@ -473,59 +490,60 @@ intros A B ; split ; intros H ; induction B ;
 - inversion H ; subst.
   simpl ; rewrite (proj2 (yalla_ax.ateq_eq _ _) eq_refl).
   constructor.
-- inversion H ; subst.
+- inversion H as [  | _1 _2 _3 H' | _1 _2 _3 H' | | | |  | |   |  |  ] ; subst. (* message d'erreur si j'utilise '_' *)
   + unfold subformb.
-    replace (eqb_form (tens B1 B2) (tens B1 B2)) with true
+    replace (eqb_form (tens B1 B2) (tens B1 B2)) with true (* question : ici B1 et B2 sont nommés automatiquement, mais ça
+n'a pas l'air très grave puisqu'ils découlent de B*)
       by (symmetry ; apply eqb_eq_form; reflexivity)...
-  + apply IHB1 in H2.
-    simpl ; rewrite H2 ; simpl.
+  + apply IHl in H'.
+    simpl ; rewrite H' ; simpl.
     rewrite orb_true_r...
-  + apply IHB2 in H2.
-    simpl ; rewrite H2 ; simpl.
+  + apply IHr in H'.
+    simpl ; rewrite H' ; simpl.
     rewrite 2 orb_true_r...
-- inversion H ; subst.
+- inversion H as [  | | | _1 _2 _3 H' | _1 _2 _3 H' | |  | |   |  |  ] ; subst.
   + unfold subformb.
     replace (eqb_form (parr B1 B2) (parr B1 B2)) with true
       by (symmetry ; apply eqb_eq_form ; reflexivity)...
-  + apply IHB1 in H2.
-    simpl ; rewrite H2 ; simpl.
+  + apply IHl in H'.
+    simpl ; rewrite H' ; simpl.
     rewrite orb_true_r...
-  + apply IHB2 in H2.
-    simpl ; rewrite H2 ; simpl.
+  + apply IHr in H'.
+    simpl ; rewrite H' ; simpl.
     rewrite 2 orb_true_r...
-- inversion H ; subst.
+- inversion H as [  | | | | | _1 _2 _3 H' | _1 _2 _3 H' | |   |  |  ] ; subst.
   + unfold subformb.
     replace (eqb_form (aplus B1 B2) (aplus B1 B2)) with true
       by (symmetry ; apply eqb_eq_form; reflexivity)...
-  + apply IHB1 in H2.
-    simpl ; rewrite H2 ; simpl.
+  + apply IHl in H'.
+    simpl ; rewrite H' ; simpl.
     rewrite orb_true_r...
-  + apply IHB2 in H2.
-    simpl ; rewrite H2 ; simpl.
+  + apply IHr in H'.
+    simpl ; rewrite H' ; simpl.
     rewrite 2 orb_true_r...
-- inversion H ; subst.
+- inversion H as [  | | | | | | | _1 _2 _3 H' | _1 _2 _3 H' | |  ] ; subst.
   + unfold subformb.
     replace (eqb_form (awith B1 B2) (awith B1 B2)) with true
       by (symmetry ; apply eqb_eq_form ; reflexivity)...
-  + apply IHB1 in H2.
-    simpl ; rewrite H2 ; simpl.
+  + apply IHl in H'.
+    simpl ; rewrite H' ; simpl.
     rewrite orb_true_r...
-  + apply IHB2 in H2.
-    simpl ; rewrite H2 ; simpl.
+  + apply IHr in H'.
+    simpl ; rewrite H' ; simpl.
     rewrite 2 orb_true_r...
-- inversion H ; subst.
+- inversion H as [  | | | | | | | | | _1 _2 _3 H' | ] ; subst.
   + unfold subformb.
-    replace (eqb_form (oc c B) (oc c B)) with true
+    replace (eqb_form (oc e B) (oc e B)) with true
       by (symmetry ; apply eqb_eq_form ; reflexivity)...
-  + apply IHB in H2.
-    simpl ; rewrite H2 ; simpl.
+  + apply IH in H'.
+    simpl ; rewrite H' ; simpl.
     rewrite orb_true_r...
-- inversion H ; subst.
+- inversion H as [  | | | | | | | | | | _1 _2 _3 H' ] ; subst.
   + unfold subformb.
-    replace (eqb_form (wn c B) (wn c B)) with true
+    replace (eqb_form (wn e B) (wn e B)) with true
       by (symmetry ; apply eqb_eq_form ; reflexivity)...
-  + apply IHB in H2.
-    simpl ; rewrite H2 ; simpl.
+  + apply IH in H'.
+    simpl ; rewrite H' ; simpl.
     rewrite orb_true_r...
 Qed.
 
@@ -547,21 +565,21 @@ Proof with try assumption.
 intros l1 l2 ; split ; intros H ; induction l1 ; try (now (inversion H ; constructor)).
 - unfold subformb_list in H.
   apply forallb_Forall in H.
-  inversion H ; subst.
-  apply existsb_Exists in H2.
+  inversion H as [|_1 _2 H'] ; subst.
+  apply existsb_Exists in H'.
   constructor.
-  + clear - H2 ; induction l2 ; inversion H2 ; subst.
+  + clear - H' ; induction l2 ; inversion H' ; subst.
     * constructor.
       apply subb_sub...
     * apply Exists_cons_tl.
       apply IHl2...
   + apply IHl1.
     apply forallb_Forall...
-- inversion H ; subst.
+- inversion H as [|_1 _2 H']; subst.
   unfold subformb_list ; simpl.
   apply andb_true_iff ; split.
   + apply existsb_Exists.
-    clear - H2 ; induction l2 ; inversion H2 ; subst.
+    clear - H' ; induction l2 ; inversion H' ; subst.
     * constructor.
       apply subb_sub...
     * apply Exists_cons_tl.
