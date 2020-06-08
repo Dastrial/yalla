@@ -492,8 +492,7 @@ intros A B ; split ; intros H ; induction_formula B B1 B2 X e;
   constructor.
 - inversion H as [  | _1 _2 _3 H' | _1 _2 _3 H' | | | |  | |   |  |  ] ; subst. (* message d'erreur si j'utilise '_' *)
   + unfold subformb.
-    replace (eqb_form (tens B1 B2) (tens B1 B2)) with true (* question : ici B1 et B2 sont nommés automatiquement, mais ça
-n'a pas l'air très grave puisqu'ils découlent de B*)
+    replace (eqb_form (tens B1 B2) (tens B1 B2)) with true
       by (symmetry ; apply eqb_eq_form; reflexivity)...
   + apply IHl in H'.
     simpl ; rewrite H' ; simpl.
