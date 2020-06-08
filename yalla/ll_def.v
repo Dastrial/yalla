@@ -572,9 +572,8 @@ Lemma gax_elts_mix {P} : forall L eq FL l pi, In_Forall_Type (ll P) l pi FL ->
   forall ax, In_Type ax (gax_elts pi) -> In_Type ax (gax_elts (mix_r P L eq FL)).
 Proof with try assumption;try reflexivity.
   intros L eq FL; simpl; clear eq. Print In_Forall_Type.
-  induction FL; intros l' pi Hin ; [inversion Hin| inversion Hin as [H|]].
-(*question : est-ce qu'on peut faire mieux que deux inversions en nommant correctement les hypothèses ?*)
-  - inversion H; subst.
+  induction FL; intros l' pi Hin; [inversion Hin| inversion Hin as [Heq|]].
+  - inversion Heq; subst.
     intros ax Hin_ax.
     apply in_Type_or_app.
     left...
@@ -1651,21 +1650,45 @@ induction A ; simpl.
   + apply plus_r1 ; ll_swap...
   + apply plus_r2 ; ll_swap...
 - change (oc c A :: wn c (dual A) :: nil)
-    with (oc c A :: map (wn c) (dual A :: nil)).
+    with (oc c A :: map (fun p => wn (fst p) (snd p)) ((c, dual A) :: nil)).
   specialize ax_exp_ax with c.
   inversion ax_exp_ax.
-  inversion H0.
-  destruct ax_exp_ax.
-  apply oc_r.
-  ll_swap in IHA.
-  list_simpl ; ll_swap.
-  apply de_r...
-- apply de_r in IHA.
-  ll_swap in IHA.
+  apply orb_true_elim in H0.
+  destruct H0.
+  + apply orb_true_elim in e.
+    destruct e.
+    * now apply ocu_r.
+    * apply ocf_r; auto.
+      now repeat constructor.
+  + apply andb_true_iff in e.
+    destruct e.
+    apply ocg_r.
+    * simpl.
+      ll_swap in IHA.
+      list_simpl ; ll_swap.
+      apply (mpx_r _ 1)...
+    * now repeat constructor.
+- ll_swap in IHA.
   ll_swap.
-  change (oc (dual A) :: wn A :: nil)
-    with (oc (dual A) :: map wn (A :: nil)).
-  apply oc_r...
+  change (oc c (dual A) :: wn c A :: nil)
+    with (oc c (dual A) :: map (fun p => wn (fst p) (snd p)) ((c, A) :: nil)).
+  specialize ax_exp_ax with c.
+  inversion ax_exp_ax.
+  apply orb_true_elim in H0.
+  destruct H0.
+  + apply orb_true_elim in e.
+    destruct e.
+    * now apply ocu_r.
+    * apply ocf_r; auto.
+      now repeat constructor.
+  + apply andb_true_iff in e.
+    destruct e.
+    apply ocg_r.
+    * simpl.
+      ll_swap in IHA.
+      list_simpl ; ll_swap.
+      apply (mpx_r _ 1)...
+    * now repeat constructor.
 Qed.
 
 Lemma ax_gen_loc : forall P Q l, Bool.leb (pperm P) (pperm Q) ->
