@@ -355,10 +355,9 @@ Ltac induction_formula A A1 A2 X e:=
 
 Lemma eqb_eq_form : forall A B, eqb_form A B = true <-> A = B.
 Proof with reflexivity.
-
 induction A ; destruct B ; (split ; [ intros Heqb | intros Heq ]) ;
-  try inversion Heqb as [H] ; try inversion Heq ; try reflexivity. (* question : ici inversion Heq peut générer 1 ou 2 buts
-selon le cas, comment nomme-t-on les hypothèses ? *)
+  try inversion Heqb as [H]; try (now inversion Heq); try reflexivity;
+  try injection Heq; try intros H1; try intros H2.
 - apply yalla_ax.ateq_eq in H ; subst...
 - subst ; simpl.
   apply yalla_ax.ateq_eq...
@@ -394,7 +393,9 @@ selon le cas, comment nomme-t-on les hypothèses ? *)
 - apply andb_true_iff in H. destruct H as [H'].
   apply eqb_eq in H'.
   apply IHA in H ; subst...
-- simpl. apply andb_true_iff. split. apply eqb_eq. reflexivity. rewrite <- H1. apply IHA. reflexivity.
+- simpl. apply andb_true_iff. split.
+  + now apply eqb_eq.
+  + rewrite <- H1. apply IHA. reflexivity.
 Qed.
 
 (* Unused
@@ -490,7 +491,7 @@ intros A B ; split ; intros H ; induction_formula B B1 B2 X e;
 - inversion H ; subst.
   simpl ; rewrite (proj2 (yalla_ax.ateq_eq _ _) eq_refl).
   constructor.
-- inversion H as [  | _1 _2 _3 H' | _1 _2 _3 H' | | | |  | |   |  |  ] ; subst. (* message d'erreur si j'utilise '_' *)
+- inversion_clear H as [  | ? ? ? H' | ? ? ? H' | | | |  | |   |  |  ].
   + unfold subformb.
     replace (eqb_form (tens B1 B2) (tens B1 B2)) with true
       by (symmetry ; apply eqb_eq_form; reflexivity)...
@@ -500,7 +501,7 @@ intros A B ; split ; intros H ; induction_formula B B1 B2 X e;
   + apply IHr in H'.
     simpl ; rewrite H' ; simpl.
     rewrite 2 orb_true_r...
-- inversion H as [  | | | _1 _2 _3 H' | _1 _2 _3 H' | |  | |   |  |  ] ; subst.
+- inversion_clear H as [  | | | ? ? ? H' | ? ? ? H' | |  | |   |  |  ].
   + unfold subformb.
     replace (eqb_form (parr B1 B2) (parr B1 B2)) with true
       by (symmetry ; apply eqb_eq_form ; reflexivity)...
@@ -510,7 +511,7 @@ intros A B ; split ; intros H ; induction_formula B B1 B2 X e;
   + apply IHr in H'.
     simpl ; rewrite H' ; simpl.
     rewrite 2 orb_true_r...
-- inversion H as [  | | | | | _1 _2 _3 H' | _1 _2 _3 H' | |   |  |  ] ; subst.
+- inversion_clear H as [  | | | | | ? ? ? H' | ? ? ? H' | |   |  |  ].
   + unfold subformb.
     replace (eqb_form (aplus B1 B2) (aplus B1 B2)) with true
       by (symmetry ; apply eqb_eq_form; reflexivity)...
@@ -520,7 +521,7 @@ intros A B ; split ; intros H ; induction_formula B B1 B2 X e;
   + apply IHr in H'.
     simpl ; rewrite H' ; simpl.
     rewrite 2 orb_true_r...
-- inversion H as [  | | | | | | | _1 _2 _3 H' | _1 _2 _3 H' | |  ] ; subst.
+- inversion_clear H as [  | | | | | | | ? ? ? H' | ? ? ? H' | |  ].
   + unfold subformb.
     replace (eqb_form (awith B1 B2) (awith B1 B2)) with true
       by (symmetry ; apply eqb_eq_form ; reflexivity)...
@@ -530,14 +531,14 @@ intros A B ; split ; intros H ; induction_formula B B1 B2 X e;
   + apply IHr in H'.
     simpl ; rewrite H' ; simpl.
     rewrite 2 orb_true_r...
-- inversion H as [  | | | | | | | | | _1 _2 _3 H' | ] ; subst.
+- inversion_clear H as [  | | | | | | | | | ? ? ? H' | ].
   + unfold subformb.
     replace (eqb_form (oc e B) (oc e B)) with true
       by (symmetry ; apply eqb_eq_form ; reflexivity)...
   + apply IH in H'.
     simpl ; rewrite H' ; simpl.
     rewrite orb_true_r...
-- inversion H as [  | | | | | | | | | | _1 _2 _3 H' ] ; subst.
+- inversion_clear H as [  | | | | | | | | | | ? ? ? H' ].
   + unfold subformb.
     replace (eqb_form (wn e B) (wn e B)) with true
       by (symmetry ; apply eqb_eq_form ; reflexivity)...
