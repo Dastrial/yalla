@@ -11,7 +11,7 @@ Require Import Bool_more List_more List_Type_more Dependent_Forall_Type
 Require Import dectype.
 Require Export basic_misc formulas.
 
-
+Require issue12394.
 
 
 
@@ -632,8 +632,12 @@ Qed.
 Lemma stronger_pfrag P Q : le_pfrag P Q -> forall l, ll P l -> ll Q l.
 Proof with myeeasy.
 intros Hle l Hlproof.
-induction Hlproof using ll_nested_ind'; try (constructor ; myeasy ; fail). (* question : je n'arrive pas à utiliser 
-                                                                                  "induction _ using _ as [ | ...| ]" *)
+ (* question : je n'arrive pas à utiliser 
+               "induction _ using _ as [ | ...| ]" *)
+(*
+eapply ll_nested_ind'; [exact Hlproof | | | |  | | | | | | | | | | | | | | | | ].
+*)
+induction Hlproof using ll_nested_ind'; try (constructor ; myeasy ; fail).
 - apply (ex_r _ l1)...
   destruct Hle as (_ & _ & _  & Hp & _ ).
   unfold PCperm_Type in p.
@@ -1666,7 +1670,6 @@ Lemma ax_gen_loc : forall P Q l, Bool.leb (pperm P) (pperm Q) ->
   Forall_Type (fun a => ll Q (projT2 (pgax P) a)) (gax_elts pi) ->
   ll Q l.
 Proof with myeeasy.
-admit. (*
 intros P Q l Hperm Hmix Hcut pi.
 induction pi using ll_nested_ind ; simpl ; intros Hgax ;
   try (destruct (Forall_Type_app_inv _ _ _ Hgax) as [Hgax1 Hgax2]) ;
@@ -1691,39 +1694,30 @@ induction pi using ll_nested_ind ; simpl ; intros Hgax ;
     * inversion Hin.
       -- subst.
          inversion X.
-         apply inj_pair2_eq_dec in H2 ; [ | apply list_eq_dec; apply Formula_dec.eq_dec].
-         apply inj_pair2_eq_dec in H3 ; [ | apply list_eq_dec ; apply list_eq_dec; apply Formula_dec.eq_dec].
-         subst.
+         apply inj_pair2_eq_dec in H2; 
+           [ | apply List.list_eq_dec, List.list_eq_dec, eq_dt_dec ].
+         assert (Pa = p) as Heq; subst.
+         { apply issue12394.injection_list in H2; intuition.
+           apply List.list_eq_dec, eq_dt_dec. }
          apply X0.
-         destruct @Forall_Type_app_inv with (projT1 (pgax P))
-           (fun a : projT1 (pgax P) => ll Q (projT2 (pgax P) a)) (gax_elts p) ((fix
-             gax_elts_Forall (P : pfrag) (L : list (list formula))
-                             (PL : Forall_Type (ll P) L) {struct PL} :
-               list (projT1 (pgax P)) :=
-               match PL with
-               | Forall_Type_nil _ => nil
-               | @Forall_Type_cons _ _ l L0 Pl PL0 =>
-                   gax_elts Pl ++ gax_elts_Forall P L0 PL0
-               end) P l0 PL)...
+         apply Forall_Type_app_inv in Hgax; intuition.
       -- inversion X.
-         apply inj_pair2_eq_dec in H ; [ | apply list_eq_dec; apply Formula_dec.eq_dec].
-         apply inj_pair2_eq_dec in H3 ; [ | apply list_eq_dec ; apply list_eq_dec; apply Formula_dec.eq_dec].
-         subst.
+         apply inj_pair2_eq_dec in H2; [ | apply List.list_eq_dec, List.list_eq_dec, eq_dt_dec].
+         assert (Pa = p /\ Fl = PL) as [-> ->].
+         { apply issue12394.injection_list in H2; intuition.
+           apply List.list_eq_dec, eq_dt_dec. }
          apply IHPL...
-         destruct @Forall_Type_app_inv with (projT1 (pgax P))
-           (fun a : projT1 (pgax P) => ll Q (projT2 (pgax P) a)) (gax_elts p) ((fix
-             gax_elts_Forall (P : pfrag) (L : list (list formula))
-                             (PL : Forall_Type (ll P) L) {struct PL} :
-               list (projT1 (pgax P)) :=
-               match PL with
-               | Forall_Type_nil _ => nil
-               | @Forall_Type_cons _ _ l L0 Pl PL0 =>
-                   gax_elts Pl ++ gax_elts_Forall P L0 PL0
-               end) P l0 PL)...
+         apply Forall_Type_app_inv in Hgax; intuition.
+- admit.
+- admit.
+- admit.
+- admit.
+- admit.
+- admit.
 - eapply cut_r...
   rewrite f in Hcut ; destruct (pcut Q) ; inversion Hcut ; simpl...
 - inversion Hgax ; subst...
-Qed. *) Admitted.
+Admitted.
 
 Lemma ax_gen : forall P Q l, Bool.leb (pperm P) (pperm Q) ->
   (forall n, Bool.leb (pmix P n) (pmix Q n)) ->
@@ -1803,13 +1797,13 @@ Lemma ext_wn_param P Q (Q_perm : pperm Q = true) : forall l l0,
   (forall a, ll Q (projT2 (pgax P) a ++ map (fun p => (wn (fst p)) (snd p)) l0)) ->
   (forall L, pmix P (length L) = true -> pmix Q (length L) = false ->
              forall (FL : Forall_Type (ll Q) (map (fun l => l ++ (map (fun p => (wn (fst p)) (snd p)) l0)) L)), 
-                                  ll Q (concat L ++ map (fun p => (wn (fst p)) (snd p)) l0)) -> 
-                                  ll Q (l ++ map (fun p => (wn (fst p)) (snd p)) l0).
+                                  ll Q (concat L ++ map (fun p => (wn (fst p)) (snd p)) l0)) ->
+  ll Q (l ++ map (fun p => (wn (fst p)) (snd p)) l0).
 Proof with myeeasy.
 intros l l0 pi Hwk Hpcut Hpgax Hpmix.
 induction pi using ll_nested_ind ; try (now constructor).
 - eapply ex_r ; [ | apply PCperm_Type_app_comm ]...
-  apply mpx_list_r with 0 ; list_simpl...
+  apply wk_list_r with 0; list_simpl...
   apply ax_r.
 - eapply ex_r...
   apply PCperm_perm_Type in p.

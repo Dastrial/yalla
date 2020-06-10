@@ -43,6 +43,8 @@ microyalla/nanoll.v
 microyalla/nano_macro_ill.v
 microyalla/nano_macro_ll.v
 
+yalla/issue12394.v
+
 yalla/basic_misc.v
 yalla/bbb.v
 yalla/fmformulas.v
