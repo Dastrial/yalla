@@ -706,7 +706,7 @@ Qed.
 
 (** *** Variants of rules *)
 
-(** Weakening on a list of formulas *)
+(** Multiplexing on a list of formulas *)
 Lemma mpx_list_r {P} : forall l i l', ll P (flat_map (fun p => repeat (snd p) i) l ++ l') -> 
                        Forall (fun p => is_true (sig P (fst p) (mpx_rule i))) l ->
                        ll P ((map (fun p => wn (fst p) (snd p)) l) ++ l').
@@ -721,6 +721,18 @@ induction l; intros i l' H...
     * inversion H1...
   + case_eq (pperm P); intro ppermH; unfold PCperm_Type; [perm_Type_solve|cperm_Type_solve].
   + inversion H1...
+Qed.
+
+Lemma wk_list_r {P} : forall l l', ll P l' -> 
+                       Forall (fun p => is_true (sig P (fst p) (mpx_rule 0))) l ->
+                       ll P ((map (fun p => wn (fst p) (snd p)) l) ++ l').
+Proof with myeasy.
+intros l l' Hp Hmpx0.
+apply mpx_list_r with 0...
+induction l.
+- list_simpl...
+- list_simpl ; apply IHl.
+  inversion Hmpx0...
 Qed.
 
 (** Contraction on a list of formulas *)
@@ -1809,8 +1821,10 @@ Proof with myeeasy.
 intros l l0 pi Hwk Hpcut Hpgax Hpmix.
 induction pi using ll_nested_ind ; try (now constructor).
 - eapply ex_r ; [ | apply PCperm_Type_app_comm ]...
-  apply mpx_list_r with 0 ; list_simpl...
-  apply ax_r.
+  apply mpx_list_r with 0.
+  induction l0...
+  + apply ax_r.
+  +
 - eapply ex_r...
   apply PCperm_perm_Type in p.
   rewrite Q_perm.
