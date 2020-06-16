@@ -662,11 +662,9 @@ Qed.
 Lemma stronger_pfrag P Q : le_pfrag P Q -> forall l, ll P l -> ll Q l.
 Proof with myeeasy.
 intros Hle l Hlproof.
- (* question : je n'arrive pas à utiliser 
-               "induction _ using _ as [ | ...| ]" *)
-(*
-eapply ll_nested_ind'; [exact Hlproof | | | |  | | | | | | | | | | | | | | | | ].
-*)
+(* apply (ll_nested_ind' Hlproof) with (Pred:=(fun l _ => ll Q l)).
+revert Hlproof. apply ll_nested_ind' with (l:=l).
+induction_ll X L l l1 l2 lw lw' e pi e e' A B a Hlproof.*)
 induction Hlproof using ll_nested_ind'; try (constructor ; myeasy ; fail).
 - apply (ex_r _ l1)...
   destruct Hle as (_ & _ & _  & Hp & _ ).
@@ -1871,10 +1869,13 @@ Lemma ext_wn_param P Q (Q_perm : pperm Q = true) : forall l l0,
   (Forall (fun p => is_true(sig Q (fst p) (mpx_rule 0))) l0) ->
   (Forall (fun p => is_true(sig Q (fst p) (co_rule 0))) l0) ->
   (forall e, Forall (fun e' : Sset => is_true (leqg Q e e'))
-  (map (fun p : Sset * formula => fst p) l0)) ->
-  (forall e e', (is_false (leqf P e e'))) ->
-  (forall e e', (is_false (lequ P e e'))) ->
+    (map (fun p : Sset * formula => fst p) l0)) ->
+  (forall e e', ((leqf P e e') = false)) ->
+  (forall e e', ((lequ P e e') = false)) ->
   (forall e e', is_true (leqg P e e') -> is_true (leqg Q e e')) ->
+  (forall e i, is_true (sig P e (mpx_rule i)) -> is_true (sig Q e (mpx_rule i)))->
+  (forall e i, is_true (sig P e (co_rule i)) -> is_true (sig Q e (co_rule i)))->
+  (forall e, is_true (sig P e dg_rule) -> is_true (sig Q e dg_rule))->
   (pcut P = true -> pcut Q = true) ->
   (forall a, ll Q (projT2 (pgax P) a ++ map (fun p => (wn (fst p)) (snd p)) l0)) ->
   (forall L, pmix P (length L) = true -> pmix Q (length L) = false ->
@@ -1882,7 +1883,7 @@ Lemma ext_wn_param P Q (Q_perm : pperm Q = true) : forall l l0,
                                   ll Q (concat L ++ map (fun p => (wn (fst p)) (snd p)) l0)) ->
   ll Q (l ++ map (fun p => (wn (fst p)) (snd p)) l0).
 Proof with myeeasy.
-intros l l0 pi Hwk Hco Hleql0g Hleql0f Hleqg Hleqf Hlequ Hpcut Hpgax Hpmix.
+intros l l0 pi Hwk Hco Hleqgall Hleqf Hlequ Hleqg Hmpx Hcoi Hdg Hpcut Hpgax Hpmix.
 induction pi using ll_nested_ind ; try (now constructor).
 - eapply ex_r ; [ | apply PCperm_Type_app_comm ]...
   apply wk_list_r...
@@ -1954,45 +1955,41 @@ map (fun p : Sset * formula => wn (fst p) (snd p)) l0 = map (fun p : Sset * form
       -- clear - Hleqg pleq ; induction l1 ; [list_simpl ; auto|].
          constructor. inversion pleq ; apply Hleqg ; auto.
          apply IHl1 ; inversion pleq...
-      -- clear - Hleql0g ; induction l0 ; [list_simpl ; auto|].
-         constructor ; specialize Hleql0g with e ; inversion Hleql0g...
-- assert (((map (fun p : Sset * formula =>
-            wn (fst p) (snd p)) l1) ++
-            map (fun p : Sset * formula => wn (fst p) (snd p))l0) = 
-         (map
-            (fun p : Sset * formula =>
-            wn (fst p) (snd p)) (l1++l0))).
-  + clear. assert (forall l1, (map (fun p : Sset * formula => wn (fst p) (snd p)) l1) ++
-map (fun p : Sset * formula => wn (fst p) (snd p)) l0 = map (fun p : Sset * formula => wn (fst p) (snd p)) (l1 ++ l0)) ;[|auto].
-    induction l0 ; [intro l0 ; rewrite app_nil_r ; rewrite app_nil_r ;auto|].
-    induction l2 ; [list_simpl |]... rewrite <- app_comm_cons. unfold map. unfold map in IHl2. rewrite <- IHl2. constructor.
-  + rewrite <- app_comm_cons. rewrite H. apply ocf_r.
-    * rewrite <- H...
-    * assert ((map (fun p : Sset * formula => fst p) (l1 ++ l0)) = ((map (fun p : Sset * formula => fst p) l1) ++ (map (fun p : Sset * formula => fst p) l0))) as Heqmap ;[apply map_app| rewrite Heqmap].
-      apply Forall_app.
-      -- clear - Hleqg pleq ; induction l1 ; [list_simpl ; auto|].
-         constructor. inversion pleq ; apply Hleqg ; auto.
-         apply IHl1 ; inversion pleq...
-      -- clear - Hleql0g ; induction l0 ; [list_simpl ; auto|].
-         constructor ; specialize Hleql0g with e ; inversion Hleql0g...
-         
-    symmetry.
-    unfold map.
-    apply app_comm_cons.
-    specialize
-    apply IHl1.
-    apply ocg_r.
-- rewrite <- app_comm_cons in IHpi.
-  rewrite <- map_app in IHpi.
-  rewrite <- app_comm_cons.
-  rewrite <- map_app.
-  apply oc_r...
+      -- clear - Hleqgall ; induction l0 ; [list_simpl ; auto|].
+         constructor ; specialize Hleqgall with e ; inversion Hleqgall...
+- assert (l1=nil).
+  + inversion pleq ; [induction l1 ; [auto | inversion H0]|].
+    specialize Hleqf with e x ; rewrite H0 in Hleqf ; inversion Hleqf.
+  + rewrite H ; list_simpl ; rewrite H in IHpi.
+    apply ocg_r ; [apply IHpi | ].
+    specialize Hleqgall with e ; assumption.
+- specialize Hlequ with e e' ; rewrite pleq in Hlequ ; inversion Hlequ.
+- apply mpx_r with i ; [|specialize Hmpx with e i ; apply Hmpx in p ; auto].
+  apply (ex_r _ ((repeat A i ++ l1) ++ map (fun p : Sset * formula => wn (fst p) (snd p))
+            l0))...  PCperm_Type_solve.
+- apply co_r with i ; [|specialize Hcoi with e i ; apply Hcoi in p ; auto].
+  apply (ex_r _ ((repeat (wn e A) (i+2) ++ l1) ++ map (fun p : Sset * formula => wn (fst p) (snd p))
+            l0))...  PCperm_Type_solve.
+- apply dg_r ; [|specialize Hdg with e ; apply Hdg in p ; auto].
+  assumption.
 - eapply ex_r ; [ | apply PCperm_Type_app_comm ]...
-  apply co_list_r.
-  apply (ex_r _ ((l2 ++ map wn l0) ++ l1 ++ map wn l0)) ;
-    [ | rewrite Q_perm ; PCperm_Type_solve ].
-  eapply cut_r...
-  intuition.
+  apply co_list_r with 0...
+  apply (ex_r _ ((l2 ++ map (fun p : Sset * formula => wn (fst p) (snd p)) l0) ++ l1 ++ map (fun p : Sset * formula => wn (fst p) (snd p)) l0)).
+  + eapply cut_r...
+    intuition.
+  + clear - Q_perm ; induction l0 ; list_simpl ; myeeasy ; 
+  rewrite Q_perm ;
+  transitivity (wn (fst a) (snd a) ::
+    l2 ++ map (fun p : Sset * formula => wn (fst p) (snd p)) l0 ++
+      l1 ++ wn (fst a) (snd a):: map
+           (fun p : Sset * formula => wn (fst p) (snd p))
+           l0). symmetry. apply Permutation_Type_middle. apply Permutation_Type_cons ; myeeasy ;
+  transitivity (wn (fst a) (snd a)
+   :: l2 ++
+   map (fun p : Sset * formula => wn (fst p) (snd p)) l0 ++
+   l1 ++
+    map (fun p : Sset * formula => wn (fst p) (snd p))
+        l0). perm_Type_solve.  apply Permutation_Type_cons ; myeeasy ; rewrite Q_perm in IHl0 ; list_simpl in IHl0 ; myeeasy.
 - apply Hpgax...
 Qed.
 
@@ -2002,10 +1999,14 @@ Lemma ext_wn {P} {P_perm : pperm P = true} : forall l l0,
   ll P l ->
   (Forall (fun p => is_true(sig P (fst p) (mpx_rule 0))) l0) ->
   (Forall (fun p => is_true(sig P (fst p) (co_rule 0))) l0) ->
+  (forall e, Forall (fun e' : Sset => is_true (leqg P e e'))
+    (map (fun p : Sset * formula => fst p) l0)) ->
+  (forall e e', ((leqf P e e') = false)) ->
+  (forall e e', ((lequ P e e') = false)) ->
     ll (axupd_pfrag P ((existT (fun x => x -> list formula) _ (fun a => projT2 (pgax P) a ++ map (fun p => (wn (fst p)) (snd p)) l0))))
        (l ++ map (fun p => (wn (fst p)) (snd p)) l0).
 Proof with myeeasy.
-intros l l0 pi Hmpx0 Hco0.
+intros l l0 pi Hmpx0 Hco0 Hleqgl0 Hleqf Hlequ.
 remember
   (axupd_pfrag P ((existT (fun x => x -> list formula) _ (fun a => projT2 (pgax P) a ++ map (fun p => (wn (fst p)) (snd p)) l0))))
   as Q.
@@ -2013,6 +2014,15 @@ eapply (ext_wn_param P Q) in pi...
 - rewrite HeqQ...
 - subst ;simpl...
 - subst ;simpl...
+- rewrite HeqQ...
+- rewrite HeqQ...
+  simpl. intros...
+- rewrite HeqQ...
+  simpl. intros...
+- rewrite HeqQ...
+  simpl. intros...
+- rewrite HeqQ...
+  simpl. intros...
 - intros P_cut.
   rewrite HeqQ ; simpl...
 - intros a.
