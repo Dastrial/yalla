@@ -724,4 +724,3 @@ Lemma In_Type_repeat {A} : forall n (a : A) b,
 Proof.
 induction n; intros a b Hin; inversion Hin; subst; [ reflexivity | now apply IHn ].
 Qed.
-

@@ -54,7 +54,7 @@ end.
 
 Fixpoint wn_n n e A :=
 match n with
-| 0 => A (* pourquoi il y avait un 0 => E => A ?*)
+| 0 => A
 | S n => wn e (wn_n n e A)
 end.
 
@@ -100,7 +100,7 @@ end.
 
 Lemma bidual : forall A, dual (dual A) = A.
 Proof.
-induction A ; simpl; (* ; fait une règle sur tous les subgoals ? *)
+induction A ; simpl;
   try (rewrite IHA1 ; rewrite IHA2) ;
   try rewrite IHA ;
   try reflexivity.
@@ -109,8 +109,7 @@ Qed.
 Lemma codual : forall A B, dual A = B <-> A = dual B.
 Proof.
 intros A B ; split ; intro H.
-- rewrite <- bidual at 1. (*at 1. veut dire qu'on applique bidual 
-sur le premier argument de l'égalité ?*)
+- rewrite <- bidual at 1. 
   rewrite H; reflexivity.
 - rewrite <- bidual.
   rewrite H; reflexivity.
@@ -329,10 +328,10 @@ induction l1 as [|? ? IHlist] ; intros l2 l3 Hl Hr ; constructor.
       etransitivity...
     * apply Exists_cons_tl.
       revert H ; clear - Hsub ; induction l ; intro H ; inversion H ; subst.
-      apply Exists_cons_hd.
-      etransitivity...
-      apply Exists_cons_tl.
-      apply IHl...
+      -- apply Exists_cons_hd ;
+         etransitivity...
+      -- apply Exists_cons_tl.
+         apply IHl...
   + inversion Hr ; subst.
     apply IHlist2...
 - inversion Hl ; subst.
