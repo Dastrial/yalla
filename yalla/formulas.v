@@ -12,6 +12,8 @@ Section Atoms.
 (** A set of atoms for building formulas *)
 Context { atom : DecType }.
 
+Context { Sset : DecType }.
+
 (** ** Definition and main properties of formulas *)
 
 (** Formulas *)
@@ -26,8 +28,8 @@ Inductive formula :=
 | top : formula
 | aplus : formula -> formula -> formula
 | awith : formula -> formula -> formula
-| oc : formula -> formula
-| wn : formula -> formula.
+| oc : Sset -> formula -> formula
+| wn : Sset -> formula -> formula.
 
 
 (** n-ary operators *)
@@ -46,28 +48,28 @@ match n with
 | S n => parr A (parr_n n A)
 end.
 
-Fixpoint wn_n n A :=
+Fixpoint wn_n n e A :=
 match n with
 | 0 => A
-| S n => wn (wn_n n A)
+| S n => wn e (wn_n n e A)
 end.
 
-Lemma wn_n_wn : forall n A, wn_n n (wn A) = wn_n (S n) A.
+Lemma wn_n_wn : forall n A e, wn_n n e (wn e A) = wn_n (S n) e A.
 Proof with try reflexivity.
-intros n A.
+intros n A e.
 induction n...
 simpl in *; rewrite IHn...
 Qed.
 
-Fixpoint oc_n n A :=
+Fixpoint oc_n n e A :=
 match n with
 | 0 => A
-| S n => oc (oc_n n A)
+| S n => oc e (oc_n n e A)
 end.
 
-Lemma oc_n_oc : forall n A, oc_n n (oc A) = oc_n (S n) A.
+Lemma oc_n_oc : forall n A e, oc_n n e (oc e A) = oc_n (S n) e A.
 Proof with try reflexivity.
-intros n A.
+intros n A e.
 induction n...
 simpl in *; rewrite IHn...
 Qed.
@@ -88,13 +90,13 @@ match A with
 | top       => zero
 | aplus A B => awith (dual A) (dual B)
 | awith A B => aplus (dual A) (dual B)
-| oc A      => wn (dual A)
-| wn A      => oc (dual A)
+| oc e A      => wn e (dual A)
+| wn e A      => oc e (dual A)
 end.
 
 Lemma bidual : forall A, dual (dual A) = A.
 Proof.
-induction A ; simpl ;
+induction A ; simpl;
   try (rewrite IHA1 ; rewrite IHA2) ;
   try rewrite IHA ;
   try reflexivity.
@@ -131,18 +133,65 @@ destruct n...
 simpl in *; rewrite <- IHn...
 Qed.
 
-Lemma dual_wn_n : forall n A, dual (wn_n n A) = oc_n n (dual A).
+Lemma dual_wn_n : forall n A e, dual (wn_n n e A) = oc_n n e (dual A).
 Proof with try reflexivity.
-induction n; intro A...
+induction n; intros A e...
 destruct n...
 simpl in *; rewrite IHn...
 Qed.
 
-Lemma dual_oc_n : forall n A, dual (oc_n n A) = wn_n n (dual A).
+Lemma dual_oc_n : forall n A e, dual (oc_n n e A) = wn_n n e (dual A).
 Proof with try reflexivity.
-induction n; intro A...
+induction n; intros A e...
 destruct n...
 simpl in *; rewrite IHn...
+Qed.
+
+
+Lemma dual_ind (A: formula) : forall (Pred : formula -> Type),
+            (forall A, Pred A -> Pred (dual A)) ->
+            (forall X, Pred (var X)) ->
+            (Pred one) ->
+            (forall A1 A2, Pred A1 -> Pred A2 -> Pred (tens A1 A2)) ->
+            (Pred zero) ->
+            (forall A1 A2, Pred A1 -> Pred A2 -> Pred (aplus A1 A2)) ->
+            (forall A e, Pred A -> Pred (oc e A)) ->
+            Pred A.
+Proof.
+induction A as [ | | | | | | | | | | | e].
+- intros Pred _ Hvar _ _ _ _ _ ; auto.
+- intros Pred Hdual Hvar _ _ _ _ _.
+  specialize Hvar with a; apply Hdual in Hvar ; auto.
+- intros Pred _ _ Hone _ _ _ _; auto.
+- intros Pred Hdual _ Hone _ _ _ _.
+  apply Hdual in Hone ; auto.
+- intros Pred Hdual Hvar Hone Htens Hzero Haplus Hwn.
+  specialize IHA1 with Pred ; apply IHA1 in Hdual as IHA1' ; auto.
+  specialize IHA2 with Pred ; apply IHA2 in Hdual as IHA2' ; auto.
+- intros Pred Hdual Hvar Hone Htens Hzero Haplus Hwn.
+  specialize IHA1 with Pred ; apply IHA1 in Hdual as IHA1' ; auto ; apply Hdual in IHA1'.
+  specialize IHA2 with Pred ; apply IHA2 in Hdual as IHA2' ; auto ; apply Hdual in IHA2'.
+  specialize Htens with (dual A2) (dual A1) ; apply Hdual in Htens ; auto.
+  simpl in Htens; auto ; specialize bidual with A1 as HA1 ; specialize bidual with A2 as HA2 ;
+  rewrite HA1 in Htens ; rewrite HA2 in Htens ; auto.
+- intros Pred _ _ _ _ Hzero _ _ ; auto.
+- intros Pred Hdual _ _ _ Hzero _ _.
+  apply Hdual in Hzero ; auto. 
+- intros Pred Hdual Hvar Hone Htens Hzero Haplus Hwn.
+  specialize IHA1 with Pred ; apply IHA1 in Hdual as IHA1' ; auto.
+  specialize IHA2 with Pred ; apply IHA2 in Hdual as IHA2' ; auto.
+- intros Pred Hdual Hvar Hone Htens Hzero Haplus Hwn.
+  specialize IHA1 with Pred ; apply IHA1 in Hdual as IHA1' ; auto ; apply Hdual in IHA1'.
+  specialize IHA2 with Pred ; apply IHA2 in Hdual as IHA2' ; auto ; apply Hdual in IHA2'.
+  specialize Haplus with (dual A1) (dual A2) ; apply Hdual in Haplus ; auto.
+  simpl in Haplus; auto ; specialize bidual with A1 as HA1 ; specialize bidual with A2 as HA2 ;
+  rewrite HA1 in Haplus ; rewrite HA2 in Haplus ; auto.
+- intros Pred Hdual Hvar Hone Htens Hzero Haplus Hwn.
+  specialize IHA with Pred ; apply IHA in Hdual as IHA' ; auto.
+- intros Pred Hdual Hvar Hone Htens Hzero Haplus Hwn.
+  specialize IHA with Pred ; apply IHA in Hdual as IHA' ; auto ; apply Hdual in IHA'.
+  specialize Hwn with (dual A) e ; apply Hdual in Hwn ; auto.
+  simpl in Hwn ; auto ; specialize bidual with A as HA ; rewrite HA in Hwn ; auto.
 Qed.
 
 (** Size of a [formula] as its number of symbols *)
@@ -158,13 +207,13 @@ match A with
 | top       => 1
 | aplus A B => S (fsize A + fsize B)
 | awith A B => S (fsize A + fsize B)
-| oc A      => S (fsize A)
-| wn A      => S (fsize A)
+| oc Sset A      => S (fsize A)
+| wn Sset A      => S (fsize A)
 end.
 
 Lemma fsize_pos : forall A, 0 < fsize A.
 Proof.
-induction A ; simpl ; lia.
+induction A; simpl; lia.
 Qed.
 
 Lemma fsize_dual : forall A, fsize (dual A) = fsize A.
@@ -176,16 +225,16 @@ induction A ; simpl ;
   try lia.
 Qed.
 
-Lemma fsize_wn_n : forall n A, fsize (wn_n n A) = n + fsize A.
+Lemma fsize_wn_n : forall n e A, fsize (wn_n n e A) = n + fsize A.
 Proof with try reflexivity.
-induction n; intros A; simpl...
-rewrite <- IHn...
+induction n; intros e A; simpl...
+rewrite -> IHn...
 Qed.
 
-Lemma fsize_oc_n : forall n A, fsize (oc_n n A) = n + fsize A.
+Lemma fsize_oc_n : forall n e A, fsize (oc_n n e A) = n + fsize A.
 Proof with try reflexivity.
-induction n; intros A; simpl...
-rewrite <- IHn...
+induction n; intros e A; simpl...
+rewrite -> IHn...
 Qed.
 
 Ltac fsize_auto :=
@@ -193,7 +242,7 @@ Ltac fsize_auto :=
   repeat rewrite fsize_dual ;
   simpl ;
   match goal with
-  | H: fsize _ < _ |- _ => simpl in H
+  | H: fsize _ < _ |- _ => simpl in H 
   | H: fsize _ <= _ |- _ => simpl in H
   | H: fsize _ = _ |- _ => simpl in H
   end ;
@@ -208,7 +257,8 @@ Inductive atomic : formula -> Type :=
 | atomic_var : forall x, atomic (var x)
 | atomic_covar : forall x, atomic (covar x).
 
-Lemma atomic_Prop_atomic : forall A, atomic_Prop A -> atomic A.
+Lemma atomic_Prop_atomic : forall A, atomic_Prop A -> atomic A. (* atomic A est un type, donc
+on veut savoir si atomic A est habitée ? *)
 Proof.
 induction A; intros Hat;
   try (exfalso; inversion Hat; fail);
@@ -229,8 +279,8 @@ Inductive subform : formula -> formula -> Prop :=
 | sub_plus_r : forall A B C, subform A B -> subform A (aplus C B)
 | sub_with_l : forall A B C, subform A B -> subform A (awith B C)
 | sub_with_r : forall A B C, subform A B -> subform A (awith C B)
-| sub_oc : forall A B, subform A B -> subform A (oc B)
-| sub_wn : forall A B, subform A B -> subform A (wn B).
+| sub_oc : forall A B e, subform A B -> subform A (oc e B)
+| sub_wn : forall A B e, subform A B -> subform A (wn e B).
 
 Lemma sub_trans : forall A B C, subform A B -> subform B C -> subform A C.
 Proof with try assumption.
@@ -252,7 +302,7 @@ Definition subform_list l1 l2 := Forall (fun A => Exists (subform A) l2) l1.
 
 Lemma sub_id_list : forall l l0, subform_list l (l0 ++ l).
 Proof.
-induction l ; intros l0 ; constructor.
+induction l as [|a] ; intros l0 ; constructor.
 - induction l0.
   + constructor.
     apply sub_id.
@@ -265,23 +315,23 @@ Qed.
 Lemma sub_trans_list : forall l1 l2 l3,
   subform_list l1 l2 -> subform_list l2 l3 -> subform_list l1 l3.
 Proof with try eassumption.
-induction l1 ; intros l2 l3 Hl Hr ; constructor.
-- inversion Hl ; subst.
-  revert Hr H1 ; clear ; induction l2 ; intros Hr Hl ; inversion Hl ; subst.
-  + inversion Hr ; subst.
-    inversion H2 ; subst.
+induction l1 as [|? ? IHlist] ; intros l2 l3 Hl Hr ; constructor.
+- inversion Hl; subst.
+  revert Hr H1 ; clear ; induction l2 as [|? ? IHlist2] ; intros Hr Hl; inversion Hl as [? ? Hsub|] ; subst.
+  + inversion Hr as [|? ? Hexist Hforall] ; subst.
+    inversion Hexist ; subst.
     * apply Exists_cons_hd.
       etransitivity...
     * apply Exists_cons_tl.
-      revert H ; clear - H0 ; induction l ; intro H ; inversion H ; subst.
-      apply Exists_cons_hd.
-      etransitivity...
-      apply Exists_cons_tl.
-      apply IHl...
+      revert H ; clear - Hsub ; induction l ; intro H ; inversion H ; subst.
+      -- apply Exists_cons_hd ;
+         etransitivity...
+      -- apply Exists_cons_tl.
+         apply IHl...
   + inversion Hr ; subst.
-    apply IHl2...
+    apply IHlist2...
 - inversion Hl ; subst.
-  eapply IHl1...
+  eapply IHlist...
 Qed.
 
 Instance sub_list_po : PreOrder subform_list.
@@ -325,45 +375,69 @@ match A, B with
 | zero, zero => true
 | awith A1 A2, awith B1 B2 => eqb_form A1 B1 && eqb_form A2 B2
 | aplus A1 A2, aplus B1 B2 => eqb_form A1 B1 && eqb_form A2 B2
-| oc A1, oc B1 => eqb_form A1 B1
-| wn A1, wn B1 => eqb_form A1 B1
+| oc e0 A1, oc e1 B1 => eqb e0 e1 && eqb_form A1 B1
+| wn e0 A1, wn e1 B1 => eqb e0 e1 && eqb_form A1 B1
 | _, _ => false
 end.
 
+
+Ltac induction_formula A A1 A2 X e:=
+  induction A as [ X
+                 | X
+                 |
+                 |
+                 | A1 IHl A2 IHr
+                 | A1 IHl A2 IHr
+                 |
+                 |
+                 | A1 IHl A2 IHr
+                 | A1 IHl A2 IHr
+                 | e A IHform
+                 | e A IHform].
+
 Lemma eqb_eq_form : forall A B, eqb_form A B = true <-> A = B.
 Proof with reflexivity.
-induction A ; destruct B ; (split ; [ intros Heqb | intros Heq ]) ;
-  try inversion Heqb ; try inversion Heq ; try reflexivity.
+induction_formula A Al Ar X e ; destruct B ; (split ; [ intros Heqb | intros Heq ]) ;
+  try inversion Heqb as [Hax]; try (now inversion Heq); try reflexivity;
+  try injection Heq; try intros Heq1; try intros Heq2.
 - apply eqb_eq in H0 ; subst...
 - subst ; simpl.
   apply eqb_eq...
 - apply eqb_eq in H0 ; subst...
 - subst ; simpl.
-  apply eqb_eq...
-- apply andb_true_iff in H0.
-  destruct H0 as [H1 H2].
-  apply IHA1 in H1 ; apply IHA2 in H2 ; subst...
+  apply yalla_ax.ateq_eq...
+- apply andb_true_iff in Hax.
+  destruct Hax as [Hax1 Hax2].
+  apply IHl in Hax1 ; apply IHr in Hax2 ; subst...
 - subst ; simpl ; apply andb_true_iff.
-  split ; [ apply IHA1 | apply IHA2 ]...
-- apply andb_true_iff in H0.
-  destruct H0 as [H1 H2].
-  apply IHA1 in H1 ; apply IHA2 in H2 ; subst...
+  split ; [ apply IHl | apply IHr ]...
+- apply andb_true_iff in Hax.
+  destruct Hax as [Hax1 Hax2].
+  apply IHl in Hax1 ; apply IHr in Hax2 ; subst...
 - subst ; simpl ; apply andb_true_iff.
-  split ; [ apply IHA1 | apply IHA2 ]...
-- apply andb_true_iff in H0.
-  destruct H0 as [H1 H2].
-  apply IHA1 in H1 ; apply IHA2 in H2 ; subst...
+  split ; [ apply IHl | apply IHr ]...
+- apply andb_true_iff in Hax.
+  destruct Hax as [Hax1 Hax2].
+  apply IHl in Hax1 ; apply IHr in Hax2 ; subst...
 - subst ; simpl ; apply andb_true_iff.
-  split ; [ apply IHA1 | apply IHA2 ]...
-- apply andb_true_iff in H0.
-  destruct H0 as [H1 H2].
-  apply IHA1 in H1 ; apply IHA2 in H2 ; subst...
+  split ; [ apply IHl | apply IHr ]...
+- apply andb_true_iff in Hax.
+  destruct Hax as [Hax1 Hax2].
+  apply IHl in Hax1 ; apply IHr in Hax2 ; subst...
 - subst ; simpl ; apply andb_true_iff.
-  split ; [ apply IHA1 | apply IHA2 ]...
-- apply IHA in H0 ; subst...
-- subst ; simpl ; apply IHA...
-- apply IHA in H0 ; subst...
-- subst ; simpl ; apply IHA...
+  split ; [ apply IHl | apply IHr ]...
+- apply andb_true_iff in Hax. destruct Hax as (Hax' & Hax).
+  apply eqb_eq in Hax'.
+  apply IHform in Hax ; subst...
+- simpl. apply andb_true_iff.
+  split;[now apply eqb_eq|].
+  rewrite <- Heq1. apply IHform. reflexivity.
+- apply andb_true_iff in Hax. destruct Hax as (Hax' & Hax).
+  apply eqb_eq in Hax'.
+  apply IHform in Hax ; subst...
+- simpl. apply andb_true_iff. split.
+  + now apply eqb_eq.
+  + rewrite <- Heq1. apply IHform. reflexivity.
 Qed.
 
 Definition formulas_dectype := {|
@@ -431,93 +505,93 @@ match B with
 | parr B1 B2 => subformb A B1 || subformb A B2
 | awith B1 B2 => subformb A B1 || subformb A B2
 | aplus B1 B2 => subformb A B1 || subformb A B2
-| oc B1 => subformb A B1
-| wn B1 => subformb A B1
+| oc e B1 => subformb A B1
+| wn e B1 => subformb A B1
 | _ => false
 end.
 
 Lemma subb_sub : forall A B, is_true (subformb A B) <-> subform A B.
 Proof with try assumption; try reflexivity.
-intros A B ; split ; intros H ; induction B ;
-  try (now (inversion H ; constructor)) ;
-  try (now (destruct A ; simpl in H ; inversion H));
-  try (simpl in H;
-       apply orb_true_elim in H ; destruct H as [ H | H ] ;
-       [ | apply orb_true_elim in H ; destruct H as [ H | H ] ]; 
-       (try (apply eqb_eq_form in H ; subst)) ; now constructor; auto).
-- destruct A ; simpl in H ; try (now inversion H).
-  rewrite orb_false_r in H.
-  apply eqb_eq in H ; subst ; constructor.
-- destruct A ; simpl in H ; try (now inversion H).
-  rewrite orb_false_r in H.
-  apply eqb_eq in H ; subst ; constructor.
-- simpl in H.
-  apply orb_true_elim in H ; destruct H as [ H | H ].
-  + apply eqb_eq_form in H ; subst ; constructor.
+intros A B ; split ; intros Hyp ; induction_formula B Bl Br X e;
+  try (now (inversion Hyp ; constructor)) ;
+  try (now (destruct A ; simpl in Hyp ; inversion Hyp));
+  try (simpl in Hyp;
+       apply orb_true_elim in Hyp ; destruct Hyp as [ Hyp | Hyp ] ;
+       [ | apply orb_true_elim in Hyp ; destruct Hyp as [ Hyp | Hyp ] ]; 
+       (try (apply eqb_eq_form in Hyp ; subst)) ; now constructor; auto).
+- destruct A ; simpl in Hyp ; try (now inversion Hyp).
+  rewrite orb_false_r in Hyp.
+  apply eqb_eq in Hyp ; subst ; constructor.
+- destruct A ; simpl in Hyp ; try (now inversion Hyp).
+  rewrite orb_false_r in Hyp.
+  apply eqb_eq in Hyp ; subst ; constructor.
+- simpl in Hyp.
+  apply orb_true_elim in Hyp ; destruct Hyp as [ Hyp | Hyp ].
+  + apply eqb_eq_form in Hyp ; subst ; constructor.
   + now constructor; auto.
-- simpl in H.
-  apply orb_true_elim in H ; destruct H as [ H | H ].
-  + apply eqb_eq_form in H ; subst ; constructor.
+- simpl in Hyp.
+  apply orb_true_elim in Hyp ; destruct Hyp as [ Hyp | Hyp ].
+  + apply eqb_eq_form in Hyp ; subst ; constructor.
   + now constructor; auto.
-- inversion H ; subst.
+- inversion Hyp ; subst.
   simpl ; rewrite (proj2 (eqb_eq _ _) eq_refl).
   constructor.
-- inversion H ; subst.
+- inversion Hyp ; subst.
   simpl ; rewrite (proj2 (eqb_eq _ _) eq_refl).
   constructor.
-- inversion H ; subst.
+- inversion_clear Hyp as [  | ? ? ? Hyp' | ? ? ? Hyp' | | | |  | |   |  |  ].
   + unfold subformb.
-    replace (eqb_form (tens B1 B2) (tens B1 B2)) with true
+    replace (eqb_form (tens Bl Br) (tens Bl Br)) with true
       by (symmetry ; apply eqb_eq_form; reflexivity)...
-  + apply IHB1 in H2.
-    simpl ; rewrite H2 ; simpl.
+  + apply IHl in Hyp'.
+    simpl ; rewrite Hyp' ; simpl.
     rewrite orb_true_r...
-  + apply IHB2 in H2.
-    simpl ; rewrite H2 ; simpl.
+  + apply IHr in Hyp'.
+    simpl ; rewrite Hyp' ; simpl.
     rewrite 2 orb_true_r...
-- inversion H ; subst.
+- inversion_clear Hyp as [  | | | ? ? ? Hyp' | ? ? ? Hyp' | |  | |   |  |  ].
   + unfold subformb.
-    replace (eqb_form (parr B1 B2) (parr B1 B2)) with true
+    replace (eqb_form (parr Bl Br) (parr Bl Br)) with true
       by (symmetry ; apply eqb_eq_form ; reflexivity)...
-  + apply IHB1 in H2.
-    simpl ; rewrite H2 ; simpl.
+  + apply IHl in Hyp'.
+    simpl ; rewrite Hyp' ; simpl.
     rewrite orb_true_r...
-  + apply IHB2 in H2.
-    simpl ; rewrite H2 ; simpl.
+  + apply IHr in Hyp'.
+    simpl ; rewrite Hyp' ; simpl.
     rewrite 2 orb_true_r...
-- inversion H ; subst.
+- inversion_clear Hyp as [  | | | | | ? ? ? Hyp' | ? ? ? Hyp' | |   |  |  ].
   + unfold subformb.
-    replace (eqb_form (aplus B1 B2) (aplus B1 B2)) with true
+    replace (eqb_form (aplus Bl Br) (aplus Bl Br)) with true
       by (symmetry ; apply eqb_eq_form; reflexivity)...
-  + apply IHB1 in H2.
-    simpl ; rewrite H2 ; simpl.
+  + apply IHl in Hyp'.
+    simpl ; rewrite Hyp' ; simpl.
     rewrite orb_true_r...
-  + apply IHB2 in H2.
-    simpl ; rewrite H2 ; simpl.
+  + apply IHr in Hyp'.
+    simpl ; rewrite Hyp' ; simpl.
     rewrite 2 orb_true_r...
-- inversion H ; subst.
+- inversion_clear Hyp as [  | | | | | | | ? ? ? Hyp' | ? ? ? Hyp' | |  ].
   + unfold subformb.
-    replace (eqb_form (awith B1 B2) (awith B1 B2)) with true
+    replace (eqb_form (awith Bl Br) (awith Bl Br)) with true
       by (symmetry ; apply eqb_eq_form ; reflexivity)...
-  + apply IHB1 in H2.
-    simpl ; rewrite H2 ; simpl.
+  + apply IHl in Hyp'.
+    simpl ; rewrite Hyp' ; simpl.
     rewrite orb_true_r...
-  + apply IHB2 in H2.
-    simpl ; rewrite H2 ; simpl.
+  + apply IHr in Hyp'.
+    simpl ; rewrite Hyp' ; simpl.
     rewrite 2 orb_true_r...
-- inversion H ; subst.
+- inversion_clear Hyp as [  | | | | | | | | | ? ? ? Hyp' | ].
   + unfold subformb.
-    replace (eqb_form (oc B) (oc B)) with true
+    replace (eqb_form (oc e B) (oc e B)) with true
       by (symmetry ; apply eqb_eq_form ; reflexivity)...
-  + apply IHB in H2.
-    simpl ; rewrite H2 ; simpl.
+  + apply IHform in Hyp'.
+    simpl ; rewrite Hyp' ; simpl.
     rewrite orb_true_r...
-- inversion H ; subst.
+- inversion_clear Hyp as [  | | | | | | | | | | ? ? ? Hyp' ].
   + unfold subformb.
-    replace (eqb_form (wn B) (wn B)) with true
+    replace (eqb_form (wn e B) (wn e B)) with true
       by (symmetry ; apply eqb_eq_form ; reflexivity)...
-  + apply IHB in H2.
-    simpl ; rewrite H2 ; simpl.
+  + apply IHform in Hyp'.
+    simpl ; rewrite Hyp' ; simpl.
     rewrite orb_true_r...
 Qed.
 
@@ -536,24 +610,24 @@ Definition subformb_list l1 l2 := forallb (fun A => existsb (subformb A) l2) l1.
 
 Lemma subb_sub_list : forall l1 l2, is_true (subformb_list l1 l2) <-> subform_list l1 l2.
 Proof with try assumption.
-intros l1 l2 ; split ; intros H ; induction l1 ; try (now (inversion H ; constructor)).
-- unfold subformb_list in H.
-  unfold is_true in H; rewrite forallb_forall, <- Forall_forall in H.
-  inversion H ; subst.
-  apply existsb_exists, Exists_exists in H2.
+intros l1 l2 ; split ; intros Hyp ; induction l1 ; try (now (inversion Hyp ; constructor)).
+- unfold subformb_list in Hyp.
+  unfold is_true in Hyp; rewrite forallb_forall, <- Forall_forall in Hyp.
+  inversion Hyp as [|? ? Hyp'] ; subst.
+  apply existsb_exists, Exists_exists in Hyp'.
   constructor.
-  + clear - H2; induction l2; inversion H2; subst.
+  + clear - Hyp' ; induction l2 ; inversion Hyp' ; subst.
     * constructor.
       apply subb_sub...
     * apply Exists_cons_tl.
       apply IHl2...
   + apply IHl1.
     apply forallb_forall, Forall_forall...
-- inversion H ; subst.
+- inversion Hyp as [|? ? Hyp']; subst.
   unfold subformb_list ; simpl.
   apply andb_true_iff ; split.
   + apply existsb_exists, Exists_exists.
-    clear - H2 ; induction l2 ; inversion H2 ; subst.
+    clear - Hyp' ; induction l2 ; inversion Hyp' ; subst.
     * constructor.
       apply subb_sub...
     * apply Exists_cons_tl.
@@ -578,4 +652,3 @@ apply subb_sub_list.
 etransitivity ; eassumption.
 Qed.
 
-End Atoms.
