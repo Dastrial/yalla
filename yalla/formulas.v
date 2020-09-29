@@ -158,10 +158,10 @@ Lemma dual_ind (A: formula) : forall (Pred : formula -> Type),
             (forall A e, Pred A -> Pred (oc e A)) ->
             Pred A.
 Proof.
-induction A as [ | | | | | | | | | | | e].
+induction A as [ a | a | | | | | | | | | | e].
 - intros Pred _ Hvar _ _ _ _ _ ; auto.
 - intros Pred Hdual Hvar _ _ _ _ _.
-  specialize Hvar with a; apply Hdual in Hvar ; auto.
+  specialize Hvar with a; apply Hdual in Hvar; auto.
 - intros Pred _ _ Hone _ _ _ _; auto.
 - intros Pred Hdual _ Hone _ _ _ _.
   apply Hdual in Hone ; auto.
@@ -400,12 +400,12 @@ Proof with reflexivity.
 induction_formula A Al Ar X e ; destruct B ; (split ; [ intros Heqb | intros Heq ]) ;
   try inversion Heqb as [Hax]; try (now inversion Heq); try reflexivity;
   try injection Heq; try intros Heq1; try intros Heq2.
-- apply eqb_eq in H0 ; subst...
+- apply eqb_eq in Hax ; subst...
 - subst ; simpl.
   apply eqb_eq...
-- apply eqb_eq in H0 ; subst...
+- apply eqb_eq in Hax ; subst...
 - subst ; simpl.
-  apply yalla_ax.ateq_eq...
+  apply eqb_eq...
 - apply andb_true_iff in Hax.
   destruct Hax as [Hax1 Hax2].
   apply IHl in Hax1 ; apply IHr in Hax2 ; subst...
@@ -652,3 +652,4 @@ apply subb_sub_list.
 etransitivity ; eassumption.
 Qed.
 
+End Atoms.
