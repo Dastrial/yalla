@@ -57,7 +57,7 @@ Definition pmix02 n :=
 *)
 
 Variant Rset :=
-| co_rule : nat -> Rset (*co i sera la contraction d'arité i+2 *)
+| co_rule : nat -> Rset (*co i contraction of arity i+2 *)
 | mpx_rule : nat -> Rset
 | dg_rule : Rset.
 
